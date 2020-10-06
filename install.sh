@@ -768,7 +768,7 @@ function eggdrop
 		echo
 	fi
 	echo -n "Installing eggdrop, please wait...                              "
-	cd ../$PK3DIR ; ./configure --prefix="$glroot/sitebot" >/dev/null 2>&1 && make config >/dev/null 2>&1  && make >/dev/null 2>&1 && make install >/dev/null 2>&1
+	cd ../$PK3DIR ; ./configure --prefix="$glroot/sitebot" >/dev/null 2>&1 && make config >/dev/null 2>&1  && make >/dev/null 2>&1 && make install >/dev/null 2>&1 && make sslcert >/dev/null 2>&1
 	cd ../data
 	
 	mkdir -r $glroot/sitebot/data
