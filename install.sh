@@ -122,15 +122,28 @@ function port
 
 function version
 {
+	if [[ -f "$cache" && "`cat $cache | grep -w versionbranch | wc -l`" = 1 ]]
+	then
+		versionbranch=`cat $cache | grep -w versionbranch | cut -d "=" -f2 | tr -d "\""`
+	else
+		echo -n "Install stable or beta version of glFTPD ? [stable] [beta], default stable : " ; read versionbranch
+	fi
+	if [ "$versionbranch" = "" ] ||  [ "$versionbranch" = "stable" ] 
+	then
+		versionbranch="latest stable version"
+	else
+		versionbranch="The latest version"
+	fi
+
+	
 	if [[ -f "$cache" && "`cat $cache | grep -w version | wc -l`" = 1 ]]
 	then
 		version=`cat $cache | grep -w version | cut -d "=" -f2 | tr -d "\""`
-		#echo "Chosen version of glFTPD : $version bit"
 	else
 		echo -n "Install 32 or 64 bit version of glFTPD ? [32] [64], default 64 : " ; read version
 	fi
 	echo -n "Downloading relevant packages, please wait...                   "
-	latest=`lynx --dump https://glftpd.io | grep "The latest version" | cut -d ":" -f2 | sed -e 's/20[1-9][0-9].*//' -e 's/^  //' -e 's/^v//' | tr "[:space:]" "_" | sed 's/_$//'`
+	latest=`lynx --dump https://glftpd.io | grep "$versionbranch" | cut -d ":" -f2 | sed -e 's/20[1-9][0-9].*//' -e 's/^  //' -e 's/^v//' | tr "[:space:]" "_" | sed 's/_$//'`
 	case $version in
 		32)
 		cd packages && wget -q https://glftpd.io/files/`wget -q -O - https://glftpd.io/files/ | grep "LNX-$latest.*x$version.*" | grep -o -P '(?=glftpd).*(?=.tgz">)'`.tgz && cd ..
