@@ -575,7 +575,7 @@ function writ
 function incom
 {
 	packages/scripts/tur-rules/rulesgen.sh ${section^^}
-	echo "/site/REQUESTS/" >> $rootdir/.tmp/.path
+	echo "/site/_REQUESTS/" >> $rootdir/.tmp/.path
 }
 
 
@@ -792,11 +792,14 @@ function eggdrop
 	rm -f $glroot/sitebot/scripts/weed
 	ln -s $glroot/sitebot/`ls $glroot/sitebot | grep eggdrop-` $glroot/sitebot/sitebot
 	chmod 666 $glroot/etc$glroot.conf
-	mkdir -pm 777 $glroot/site/PRE/SiteOP $glroot/site/REQUESTS $glroot/site/SPEEDTEST
-	chmod 777 $glroot/site/PRE
-	dd if=/dev/urandom of=$glroot/site/SPEEDTEST/150MB bs=1M count=150 >/dev/null 2>&1
-	dd if=/dev/urandom of=$glroot/site/SPEEDTEST/250MB bs=1M count=250 >/dev/null 2>&1
-	dd if=/dev/urandom of=$glroot/site/SPEEDTEST/500MB bs=1M count=500 >/dev/null 2>&1
+	mkdir -pm 777 $glroot/site/_PRE/SiteOP $glroot/site/_REQUESTS $glroot/site/_SPEEDTEST
+	chmod 777 $glroot/site/_PRE
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/150MB bs=1M count=150 >/dev/null 2>&1
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/250MB bs=1M count=250 >/dev/null 2>&1
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/500MB bs=1M count=500 >/dev/null 2>&1
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/1GB bs=1M count=1000 >/dev/null 2>&1
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/5GB bs=1M count=5000 >/dev/null 2>&1
+	dd if=/dev/urandom of=$glroot/site/_SPEEDTEST/10GB bs=1M count=10000 >/dev/null 2>&1
 	rm -f $glroot/sitebot/scripts/*.tcl
 	cp ../scripts/extra/*.tcl $glroot/sitebot/scripts
 	sed -i "s/#changeme/$announcechannels/" $glroot/sitebot/scripts/rud-news.tcl
@@ -907,7 +910,7 @@ function pzsbotfile
 	echo "set device(0)"				'"'$device SITE'"' >> ngBot.conf
 	cat packages/data/dzsbnc >> ngBot.conf
 	echo "REQUEST" >> $rootdir/.tmp/.validsections
-	echo "set paths(REQUEST)			\"/site/REQUESTS/*/*\"" >> $rootdir/.tmp/dzsrace
+	echo "set paths(REQUEST)			\"/site/_REQUESTS/*/*\"" >> $rootdir/.tmp/dzsrace
 	echo "set chanlist(REQUEST)			\"$announcechannels\"" >> $rootdir/.tmp/dzschan
 	cat packages/data/dzsmidl  >> ngBot.conf
 	echo "set sections				\"`cat $rootdir/.tmp/.validsections`\"" >> ngBot.conf
@@ -1007,7 +1010,7 @@ function presystem
 		sections=`cat $rootdir/.tmp/.validsections | sed "s/REQUEST//g" | sed "s/ /|/g" | sed "s/|$//g"`
 		cat $rootdir/.tmp/footools >> $glroot/etc/pre.cfg
 		rm -f $rootdir/.tmp/footools
-		sed -i '/# group.dir/a group.SiteOP.dir=/site/PRE/SiteOP' $glroot/etc/pre.cfg
+		sed -i '/# group.dir/a group.SiteOP.dir=/site/_PRE/SiteOP' $glroot/etc/pre.cfg
 		sed -i '/# group.allow/a group.SiteOP.allow='"$sections" $glroot/etc/pre.cfg
 		sed -i "s/allow=/allow=$sections/" $glroot/bin/addaffil.sh
 		touch $glroot/ftp-data/logs/foo-pre.log
@@ -1170,7 +1173,7 @@ function request
 		cp *.tcl $glroot/sitebot/scripts
 		cp file_date $glroot/bin
 		sed -e "s/changeme/$sitename/" tur-request.conf > $glroot/bin/tur-request.conf
-		touch $glroot/site/REQUESTS/.requests ; chmod 666 $glroot/site/REQUESTS/.requests
+		touch $glroot/site/_REQUESTS/.requests ; chmod 666 $glroot/site/_REQUESTS/.requests
 		echo "1 18 * * * 		$glroot/bin/tur-request.sh status auto >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
 		echo "1 0 * * * 		$glroot/bin/tur-request.sh checkold >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
 		touch $glroot/ftp-data/logs/tur-request.log
