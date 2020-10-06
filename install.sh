@@ -770,21 +770,24 @@ function eggdrop
 	echo -n "Installing eggdrop, please wait...                              "
 	cd ../$PK3DIR ; ./configure --prefix="$glroot/sitebot" >/dev/null 2>&1 && make config >/dev/null 2>&1  && make >/dev/null 2>&1 && make install >/dev/null 2>&1
 	cd ../data
-	cat egghead > eggdrop.conf
-	cat $rootdir/.tmp/eggchan >> eggdrop.conf
-	cat bot.chan | sed -e "s/changeme/$sitename/" > $glroot/sitebot/logs/bot.chan
-	cat $rootdir/.tmp/bot.chan.tmp >> $glroot/sitebot/logs/bot.chan
-	echo "set username 		\"$sitename\"" >> eggdrop.conf
-	echo "set nick 		\"$sitename\"" >> eggdrop.conf
-	echo "set altnick 		\"_$sitename\"" >> eggdrop.conf
-	cat eggfoot >> eggdrop.conf
-	sed -i "s/changeme/$ircnickname/" eggdrop.conf
-	mv eggdrop.conf $glroot/sitebot
+	
+	mkdir -r $glroot/sitebot/data
+	chmod 777 $glroot/sitebot/data
+	cat egghead > $sitename.conf
+	cat $rootdir/.tmp/eggchan >> $sitename.conf
+	cat bot.chan | sed -e "s/changeme/$sitename/" > $glroot/sitebot/data/$sitename.chan
+	cat $rootdir/.tmp/bot.chan.tmp >> $glroot/sitebot/data/$sitename.chan
+	echo "set username 		\"$sitename\"" >> $sitename.conf
+	echo "set nick 		\"$sitename\"" >> $sitename.conf
+	echo "set altnick 		\"_$sitename\"" >> $sitename.conf
+	cat eggfoot >> $sitename.conf
+	sed -i "s/changeme/$ircnickname/" $sitename.conf
+	mv $sitename.conf $glroot/sitebot
 	cp botchkhead .botchkhead
 	echo "botdir=$glroot/sitebot" >> .botchkhead
 	echo "botscript=$PK3DIR" >> .botchkhead
 	echo "botname=$sitename" >> .botchkhead
-	echo "userfile=./logs/bot.user" >> .botchkhead
+	echo "userfile=./data/$sitename.user" >> .botchkhead
 	echo "pidfile=pid.$sitename" >> .botchkhead
 	chmod 755 .botchkhead
 	mv .botchkhead $glroot/sitebot/botchk
