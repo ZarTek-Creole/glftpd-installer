@@ -755,8 +755,9 @@ function glftpd
 	if [ -f /etc/systemd/system/glftpd.socket ]
 	then
 	    sed -i 's/#MaxConnections=64/MaxConnections=300/' /etc/systemd/system/glftpd.socket
-	    systemctl daemon-reload && systemctl restart glftpd.socket
 	fi
+	systemctl daemon-reload 
+	systemctl restart glftpd.socket
 }
 
 ## EGGDROP
