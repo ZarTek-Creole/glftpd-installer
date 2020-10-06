@@ -130,7 +130,7 @@ function version
 		echo -n "Install 32 or 64 bit version of glFTPD ? [32] [64], default 64 : " ; read version
 	fi
 	echo -n "Downloading relevant packages, please wait...                   "
-	latest=`lynx --dump https://glftpd.io | grep "latest stable version" | cut -d ":" -f2 | sed -e 's/20[1-9][0-9].*//' -e 's/^  //' -e 's/^v//' | tr "[:space:]" "_" | sed 's/_$//'`
+	latest=`lynx --dump https://glftpd.io | grep "The latest version" | cut -d ":" -f2 | sed -e 's/20[1-9][0-9].*//' -e 's/^  //' -e 's/^v//' | tr "[:space:]" "_" | sed 's/_$//'`
 	case $version in
 		32)
 		cd packages && wget -q https://glftpd.io/files/`wget -q -O - https://glftpd.io/files/ | grep "LNX-$latest.*x$version.*" | grep -o -P '(?=glftpd).*(?=.tgz">)'`.tgz && cd ..
