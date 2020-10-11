@@ -30,7 +30,7 @@
 
 namespace eval ::Tur::IrcAdmin {
     # Configuration
-    variable channel_list   "#FastLink-Staff #FastLink-Dev"
+    variable channel_list   "changeme"
     variable binary         {/glftpd/bin/tur-ircadmin.sh}
     # Configuration END
 
