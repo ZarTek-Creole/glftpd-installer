@@ -1,7 +1,9 @@
 #!/bin/bash
-VER=1.0
+VER=1.1
+by SiCiaTeCh
 ##CONFIG PART#########################
-rules=/glftpd/ftp-data/misc/site.rules
+glroot=/glftpd
+rules=/ftp-data/misc/site.rules
 compress=" "
 sections="
 "
@@ -11,10 +13,16 @@ sections="
 # if you like though.                                #
 ######################################################
 
+IsGL="1"
 ## Can we read the rules file ?
 if [ ! -r $rules ]; then
-  echo "Cant read rules file. Check path and permissions."
-  exit 0
+  rules=$glroot/$rules
+  if [ ! -r $rules ]; then
+    echo "Cant read rules file. Check path and permissions."
+    exit 0
+  else
+      IsGL=0
+  fi
 fi
 
 ## Procedure for listing all defined sections.
@@ -27,11 +35,21 @@ proc_listsections() {
       names="$name"
     fi
   done
-  echo "Tur-Rules $VER."
-  echo "Usage: !rules <section> (searchword)"
+  echo "SiCiaTeCh-Rules $VER."
+  if [ $IsGL ]; then
+    echo "Usage: site rules <section> (searchword)"
+  else
+    echo "Usage: !rules <section> (searchword)"
+  fi
   echo "Defined sections are: $names"
-  echo "Example !rules $name limited"
+    if [ $IsGL ]; then
+    echo "Usage: site rules $name limited"
+  else
+    echo "Example !rules $name limited"
+  fi
+  
 }
+
 
 ## If no argument, run the above proc.
 if [ -z "$1" ]; then
