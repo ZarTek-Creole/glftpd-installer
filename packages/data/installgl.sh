@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/bin/sh  -xv
 # jehsom's and dn's glftpd installer script
   VERSION="2.0.10"
+
 # REPORT ANY BUGS TO: #glftpd@efnet
 
 # CHANGELOG
@@ -717,8 +718,7 @@ echo ""
 echo -e "\n\033[1m4. SERVICE SETUP & MULTI-INSTALL:\033[0m\n\033[1m---------------------------------\033[0m\n"
 
 servicedef="`basename ${glroot}`"
-servicename=$servicedef
-exit $servicename
+servicename=""
 while [ -z "$servicename" ]; do
     echo "Enter a service name for glftpd. This name will be used as the"
     echo "service name mapped to the port in /etc/services, the name"
@@ -726,8 +726,7 @@ while [ -z "$servicename" ]; do
     echo -e "\033[1mNOTE:\033[0m If you (wish to) have multiple instances of glftpd on the"
     echo "same box, you *must* to change this."
     echo -n "Press <enter> for the default (${servicedef})> "
-    ## SiCiaTeCh comments : disable prompt for services name
-#    read servicename
+    read servicename
     if [ -z "$servicename" ]; then
         servicename="${servicedef}"
     else
