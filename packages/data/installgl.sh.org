@@ -1,11 +1,13 @@
 #!/bin/sh
 # jehsom's and dn's glftpd installer script
-  VERSION="2.0.6"
-
+  VERSION="2.0.10"
 # REPORT ANY BUGS TO: #glftpd@efnet
 
 # CHANGELOG
 #
+# v2.0.9
+# fixed:   Fix ipv6 and ipv4 support on macos
+# fixed:   FreeBSD version detection
 # v2.0.6
 # new:     Now works with rlinetd
 # v2.0.3
@@ -244,10 +246,11 @@ case $(uname -s) in
     *[Dd][Aa][Rr][Ww][Ii][Nn]*) os=darwin ;;
     *[Nn][Ee][Tt][Bb][Ss][Dd]*) os=netbsd ;;
     *[fF][rR][eE][eE][bB][sS][dD]*)
-        bsdversion=`uname -r | cut -d'-' -f1 | tr -cd '0-9'`
-        if [ $bsdversion -ge 60 ]; then
+        bsdversionmaj=`uname -r | cut -d'.' -f1`
+        bsdversionmin=`uname -r | cut -d'-' -f1 | cut -d'.' -f2 | tr -cd '0-9'`
+        if [ $bsdversionmaj -ge 6 ]; then
            os=freebsd6
-        elif [ $bsdversion -ge 52 ]; then
+        elif [ $bsdversionmaj -eq 5 ] && [ $bsdversionmin -ge 2 ]; then
            os=freebsd5
         else
            os=freebsd4
@@ -297,6 +300,7 @@ echo "Also, any bugs found in glftpd itself should be reported either to"
 echo "the board @ http://www.glftpd.eu, in the irc channel, or both."
 echo ""
 echo -n "Press <enter> to continue. "
+## SiCiaTeCh comments : continue ...
 #read randomkey
 
 echo -e "\n\n\033[1m1. TCPD SETUP:\033[0m\n\033[1m--------------\033[0m\n"
@@ -334,14 +338,15 @@ until [ -n "$usetcpd" ]; do
         unset usetcpd
         break
     fi
-    echo -n "Use tcpd? [Y]es [N]o: "
-#    read usetcpd
-#    case $usetcpd in
-#        [Nn])
-#            echo "Installing glftpd without tcpd."
-#            usetcpd="n"
-#        ;;
-#        [Yy])
+    ## SiCiaTeCh comments : Auto say 'y'...
+    # echo -n "Use tcpd? [Y]es [N]o: "
+    # read usetcpd
+    # case $usetcpd in
+        # [Nn])
+            # echo "Installing glftpd without tcpd."
+            # usetcpd="n"
+        # ;;
+        # [Yy])
             [ ! -z "$mywhichbin" ] && {
               tcpd="$(which tcpd | grep "^/")"
             } || {
@@ -359,12 +364,13 @@ until [ -n "$usetcpd" ]; do
             }
             echo "Installing glftpd with tcpd."
             usetcpd="y"
-#        ;;
-#        *)
-#            unset usetcpd
-#            continue
-#        ;;
-#    esac
+            ## SiCiaTeCh comments : Auto say 'y'... next
+        # ;;
+        # *)
+            # unset usetcpd
+            # continue
+        # ;;
+    # esac
 done
 #-----------
   ;;
@@ -399,55 +405,57 @@ case $os in
 esac
 echo ""
 
+## SiCiaTeCh comments :Auto no jailed
 until [ -n "$jail" ]; do
     echo -n "Use a jailed environment? [Y]es [N]o: "
-#    read jail
-#    case $jail in
-#        [Nn])
+    # read jail
+    # case $jail in
+        # [Nn])
             jail="n"
-#        ;;
-#        [Yy])
-#            jail="y"
-#            echo ""
-#            echo "Creating the jailed environment."
-#            echo ""
-#            unset jaildir
-#            until [ -n "$jaildir" ]; do
-#                echo -n "Please enter the private directory to install glftpd inside [/jail]: "
-#                read jaildir
-#                case $jaildir in
-#                    /)
-#                        echo "You can't have / as your private dir!  Try again."
-#                        echo ""
-#                        unset jaildir
-#                        continue
-#                    ;;
-#                    /*|"")
-#                        [ -z "$jaildir" ] && jaildir="/jail"
-#                        [ -d "$jaildir" ] && {
-#                            echo -n "Path already exists. [D]elete it, [A]bort, [T]ry again, [I]gnore? "
-#                            read reply
-#                            case $reply in
-#                                [dD]*) rm -rf "$jaildir" ;;
-#                                [tT]*) unset jaildir; continue ;;
-#                                [iI]*) ;;
-#                                *) echo "Aborting."; exit 1 ;;
-#                            esac
-#                        }
-#                        mkdir -p "$jaildir"
-#                        continue
-#                    ;;
-#                    *)
-#                        echo "The private directory must start with a \"/\".  Try again."
-#                        echo ""
-#                        unset jaildir
-#                        continue
-#                    ;;
-#                esac
-#            done
-#        ;;
-#    esac
+        # ;;
+        # [Yy])
+            # jail="y"
+            # echo ""
+            # echo "Creating the jailed environment."
+            # echo ""
+            # unset jaildir
+            # until [ -n "$jaildir" ]; do
+                # echo -n "Please enter the private directory to install glftpd inside [/jail]: "
+                # read jaildir
+                # case $jaildir in
+                    # /)
+                        # echo "You can't have / as your private dir!  Try again."
+                        # echo ""
+                        # unset jaildir
+                        # continue
+                    # ;;
+                    # /*|"")
+                        # [ -z "$jaildir" ] && jaildir="/jail"
+                        # [ -d "$jaildir" ] && {
+                            # echo -n "Path already exists. [D]elete it, [A]bort, [T]ry again, [I]gnore? "
+                            # read reply
+                            # case $reply in
+                                # [dD]*) rm -rf "$jaildir" ;;
+                                # [tT]*) unset jaildir; continue ;;
+                                # [iI]*) ;;
+                                # *) echo "Aborting."; exit 1 ;;
+                            # esac
+                        # }
+                        # mkdir -p "$jaildir"
+                        # continue
+                    # ;;
+                    # *)
+                        # echo "The private directory must start with a \"/\".  Try again."
+                        # echo ""
+                        # unset jaildir
+                        # continue
+                    # ;;
+                # esac
+            # done
+        # ;;
+    # esac
 done
+## SiCiaTeCh comments :Auto no jailed /end
 
 [ "$jail" = "y" ] && {
     echo ""
@@ -577,44 +585,44 @@ esac
 
 echo -e "\n\n\033[1m3. GLFTPD BASE SETUP:\033[0m\n\033[1m---------------------\033[0m\n"
 
+## SiCiaTeCh comments : Disable; already ask.
 # Get a valid installation path
-glroot="/glftpd"
-#until [ -n "$glroot" ]; do
-#    if [ "$jail" = "y" ]; then
-#        echo -n "Please enter the directory inside $jaildir to install glftpd to [/glftpd]: "
-#    else
-#        echo -n "Please enter the directory to install glftpd to [/glftpd]: "
-#    fi
-#    read glroot
-#    case $glroot in
-#        /)
-#            echo "You can't have / as your private dir!  Try again."
-#            echo ""
-#            unset glroot
-#            continue
-#        ;;
-#        /*|"")
-#            [ -z "$glroot" ] && glroot="/glftpd"
-#            [ -d "$jaildir$glroot" ] && {
-#                echo -n "Path already exists. [D]elete it, [A]bort, [T]ry again, [I]gnore? "
-#                read reply
-#                case $reply in
-#                    [dD]*) rm -rf "$jaildir$glroot" ;;
-#                    [tT]*) unset glroot; continue ;;
-#                    [iI]*) ;;
-#                    *) echo "Aborting."; exit 1 ;;
-#                esac
-#            }
-#            mkdir -p "$jaildir$glroot" || unset glroot; continue
-#        ;;
-#        *)
-#            echo "The private directory must start with a \"/\".  Try again."
-#            echo ""
-#            unset glroot
-#            continue
-#        ;;
-#    esac
-#done
+# until [ -n "$glroot" ]; do
+    # if [ "$jail" = "y" ]; then
+        # echo -n "Please enter the directory inside $jaildir to install glftpd to [/glftpd]: "
+    # else
+        # echo -n "Please enter the directory to install glftpd to [/glftpd]: "
+    # fi
+    # read glroot
+    # case $glroot in
+        # /)
+            # echo "You can't have / as your private dir!  Try again."
+            # echo ""
+            # unset glroot
+            # continue
+        # ;;
+        # /*|"")
+            # [ -z "$glroot" ] && glroot="/glftpd"
+            # [ -d "$jaildir$glroot" ] && {
+                # echo -n "Path already exists. [D]elete it, [A]bort, [T]ry again, [I]gnore? "
+                # read reply
+                # case $reply in
+                    # [dD]*) rm -rf "$jaildir$glroot" ;;
+                    # [tT]*) unset glroot; continue ;;
+                    # [iI]*) ;;
+                    # *) echo "Aborting."; exit 1 ;;
+                # esac
+            # }
+            # mkdir -p "$jaildir$glroot" || unset glroot; continue
+        # ;;
+        # *)
+            # echo "The private directory must start with a \"/\".  Try again."
+            # echo ""
+            # unset glroot
+            # continue
+        # ;;
+    # esac
+# done
 
 echo -n "Copying glftpd files to $jaildir$glroot . . . "
 
@@ -653,17 +661,64 @@ else
 fi
 
 echo -ne "\nMaking glftpd's /dev/null , /dev/full , /dev/zero & /dev/urandom . . . "
-
 mkdir $glroot/dev
 mknod -m666 "$glroot/dev/null" c 1 3
 mknod -m666 "$glroot/dev/zero" c 1 5
+if [ ! "$os" = "freebsd6" ]; then
+  case $os in
+    linux)     nods="null-1-3 full-1-7 zero-1-5 urandom-1-9" ;;
+    *freebsd*) nods="null-2-2 full-2-3 zero-2-12 urandom-2-4" ;;
+    *openbsd*) nods="null-2-2 zero-2-12 urandom-45-2" ;;
+    *netbsd*)  nods="null-2-2 zero-2-12 urandom-46-1" ;;
+    darwin)    nods="null-3-2 zero-3-3 urandom-7-1" ;;
+  esac
+
+  for nod in $nods; do
+    nodname=`echo $nod | cut -d '-' -f 1-1`
+    noda=`echo $nod | cut -d '-' -f 2-2`
+    nodb=`echo $nod | cut -d '-' -f 3-3`
+    mknod "$jaildir$glroot/dev/$nodname" c $noda $nodb
+    chmod 666 "$jaildir$glroot/dev/$nodname"
+  done
+else
+  echo "STOPPED."
+  echo "FreeBSD6.x does no longer support mknod - to make the neccessary"
+  echo "changes we have to add a couple of lines in your /etc/rc.conf,"
+  echo "/etc/fstab and /etc/devfs.rules."
+  echo -n "Add changes? [y/N]> "
+  read keystroke
+  case $keystroke in
+  [Yy])
+    echo -n "Adding the necessary lines . . . "
+    echo "devfs_set_rulesets=\"$jaildir$glroot/dev/=devfsrules_$servicename\"" >>/etc/rc.conf
+    echo "none $jaildir$glroot/dev devfs rw 0 0" >>/etc/fstab
+    echo "#glftpd ruleset start" >>/etc/devfs.rules
+    echo "[devfsrules_$servicename=$RANDOM]" >>/etc/devfs.rules
+    echo "add include \$devfsrules_hide_all" >>/etc/devfs.rules
+    echo "add include \$devfsrules_unhide_basic" >>/etc/devfs.rules
+    echo "#glftpd ruleset end" >>/etc/devfs.rules
+    echo "Done."
+    echo -n "Applying changes . . . "
+    if [ $bsdversion -ge 70 ]; then mount -t devfs devfs $jaildir$glroot/dev
+    else mount_devfs devfs $jaildir$glroot/dev
+    fi
+    /etc/rc.d/devfs start
+    ;;
+  *)
+    echo "Not changing config files - you must do this manually."
+    echo -n "Devicenode-changes not "
+    ;;
+  esac
+fi
 echo "Done."
-echo "" 
+echo ""
+
 
 echo -e "\n\033[1m4. SERVICE SETUP & MULTI-INSTALL:\033[0m\n\033[1m---------------------------------\033[0m\n"
 
 servicedef="`basename ${glroot}`"
-servicename=""
+servicename=$servicedef
+exit $servicename
 while [ -z "$servicename" ]; do
     echo "Enter a service name for glftpd. This name will be used as the"
     echo "service name mapped to the port in /etc/services, the name"
@@ -671,6 +726,7 @@ while [ -z "$servicename" ]; do
     echo -e "\033[1mNOTE:\033[0m If you (wish to) have multiple instances of glftpd on the"
     echo "same box, you *must* to change this."
     echo -n "Press <enter> for the default (${servicedef})> "
+    ## SiCiaTeCh comments : disable prompt for services name
 #    read servicename
     if [ -z "$servicename" ]; then
         servicename="${servicedef}"
@@ -897,6 +953,7 @@ echo "Done."
 
 echo -e "\n\n\033[1m6. PORT AND SYSTEM SETUP:\033[0m\n\033[1m-------------------------\033[0m\n"
 
+## SiCiaTeCh comments : Already port select
 until echo "$port" | grep -E "^[0-9]+$" > /dev/null && [ "$port" -lt 65535 ]; do
     #echo -en "Enter the port you would like glftpd to listen on [1337]: "
     #read port
@@ -959,7 +1016,7 @@ echo ""
 
 # Configure inetd or xinetd or rlinetd as appropriate
 [ "$jail" = "y" -o "$servicename" != "glftpd" ] && confpath="-r $confdir/${servicename}.conf"
-
+## SiCiaTeCh comments : systemd is good
 [ -f /etc/inetd.conf ] && SUPERSERVERS="${SUPERSERVERS} inetd"
 #[ -f /etc/xinetd.conf ] && SUPERSERVERS="${SUPERSERVERS} xinetd"
 #[ -f /etc/rlinetd.conf ] && SUPERSERVERS="${SUPERSERVERS} rlinetd"
@@ -983,8 +1040,9 @@ else
             printf "[\033[1m${superserver:0:1}\033[0m]${superserver:1}\n"
         done
         echo -n "choose superserver: "
-        #read whichnetd
-	whichnetd=s
+        ## SiCiaTeCh comments : auto select systemd 
+        # read whichnetd
+        whichnetd=s
         whichnetd=$(echo ${whichnetd}|tr '[:upper:]' '[:lower:]')
         case "${s_options}" in
             *${whichnetd}*) netd=${whichnetd} ;;
@@ -1003,19 +1061,20 @@ elif [ "$glroot" != "/glftpd" ]; then
     glstrings="-s$glroot/bin/glstrings.bin"
 fi
 
+## SiCiaTeCh comments : auto select 'y'
 ## Ask if european week is used
 unset keystroke
 #until [ -n "$keystroke" ]; do
    echo "Do you wish to use European weeks? European weeks starts with a Monday."
    echo -n "This is for glftpd's 'reset' binary (see docs for more info) [Y/N]: "
-    euroweek="-e "
-#   read keystroke
-#   case $keystroke in
-#       [Yy]) euroweek="-e " ;;
-#       [Nn]) euroweek="" ;;
-#       *) unset keystroke; continue ;;
-#   esac
-#done
+   euroweek="-e "
+   # read keystroke
+   # case $keystroke in
+       # [Yy]) euroweek="-e " ;;
+       # [Nn]) euroweek="" ;;
+       # *) unset keystroke; continue ;;
+   # esac
+# done
 
 ## Ask if localtime fixes should be added
 ltime="-"
@@ -1068,8 +1127,9 @@ proc_createcert() {
   echo "This can be any name but should say something about the ftp server"
   echo -n "like the name for it perhaps (press enter for $servicename): "
 
+## SiCiaTeCh comments : auto set servicename for tlsname
   until [ -n "$tlsname" ]; do
-#    read tlsname
+    #read tlsname
     if [ -z "$tlsname" ]; then
       tlsname=$servicename
     fi
@@ -1080,13 +1140,12 @@ proc_createcert() {
   echo "Please wait while creating certificate... (will take time!)"
   echo ""
 
+	## SiCiaTeCh comments : certificat start
   # Some OpenSSL Installations lack ecc support. Fallback to dsa then.
   type=ecdsa
   $opensslbin no-ecparam 1>/dev/null && type=dsa
-
   servbase=$tlsname
   base=ftpd-$type
-
   if [ $type = "dsa" ]; then
     echo "Openssl doesnt seem to support ECDSA so creating DSA cert instead..."
     $opensslbin rand -out gunk 2048 2>&1
@@ -1094,12 +1153,19 @@ proc_createcert() {
     $opensslbin dhparam -rand gunk -out $base.dh 2048 2>&1
     option=$base.dsaparam
     rm -f gunk
-
     $opensslbin gen$type -out $base.key $option 2>&1
   else
     $opensslbin ecparam -out $base.key -name secp384r1 -genkey 2>&1
   fi
 
+
+  # type=ecdsa
+
+  # servbase=$tlsname
+  # base=ftpd-$type
+
+  # $opensslbin ecparam -out $base.key -name secp384r1 -genkey 2>&1
+## SiCiaTeCh comments : certificat end
   $opensslbin req -new -x509 -days 9000 -key $base.key -out $base.crt << EOF
 .
 .
@@ -1193,11 +1259,11 @@ else
   until [ -n "$tls" ]; do
     echo " "
     echo "Please specify location, inside $jaildir$glroot,"
-    echo -n "to install the cert (ftpd-dsa.pem) [/etc]: "
+    echo -n "to install the cert (ftpd-ecdsa.pem) [/etc]: "
     #read tls
     case $tls in
       /)
-        echo "ftpd-dsa.pem should not reside in / - Try again."
+        echo "ftpd-ecdsa.pem should not reside in / - Try again."
         echo ""
         unset tls
         continue
@@ -1284,11 +1350,14 @@ if [ -e /etc/resolv.conf ]; then
     echo "FAILED!"
   fi
 fi
-
+## SiCiaTeCh comments : change for multi conf
 if [ "$netd" = "i" ]; then
     echo -n "Configuring inetd for glftpd . . . "
+    # inetutils-inetd works fine with just the tcp6 line, but openbsd-inetd needs the tcp4 as well for dualstack
     { grep -v ^${servicename} /etc/inetd.conf
-        echo "$servicename stream tcp nowait root $tcpd $jaildir$glroot/bin/glftpd-full-static $dummyflag -l -o -i -e -I -n 0 -b -x -r /glftpd/etc/glftpd.conf" | tr -s ' '
+        # echo "$servicename stream tcp4 nowait root $tcpd $jaildir$glroot/bin/glftpd $dummyflag -l -o -i $confpath $glstrings $euroweek" | tr -s ' '
+        # echo "$servicename stream tcp6 nowait root $tcpd $jaildir$glroot/bin/glftpd $dummyflag -l -o -i $confpath $glstrings $euroweek" | tr -s ' '
+        	        echo "$servicename stream tcp nowait root $tcpd $jaildir$glroot/bin/glftpd-full-static $dummyflag -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf" | tr -s ' '
     } > /etc/inetd.conf.new
     mv -f /etc/inetd.conf.new /etc/inetd.conf
     echo "Done."
@@ -1323,6 +1392,7 @@ elif [ "$netd" = "x" ]; then
         mkdir /etc/xinetd.d
         echo "includedir /etc/xinetd.d" >> /etc/xinetd.conf
     }
+    ## SiCiaTeCh comments : change path for multi glftpd
     cat <<EOF > /etc/xinetd.d/$servicename
 service $servicename
 {
@@ -1333,7 +1403,9 @@ service $servicename
     wait            = no
     user            = root
     server          = ${tcpd:-$jaildir$glroot/bin/glftpd-full-static}
-    server_args     = ${tcpd:+$jaildir$glroot/bin/glftpd-full-static} -l -o -i -e -I -n 0 -b -x -r /glftpd/etc/glftpd.conf
+    server_args     = ${tcpd:+$jaildir$glroot/bin/glftpd-full-static} -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf
+  #  server          = ${tcpd:-$jaildir$glroot/bin/glftpd}
+  #  server_args     = ${tcpd:+$jaildir$glroot/bin/glftpd} -l -i -o $confpath $glstrings $euroweek
 }
 EOF
     echo "Done."
@@ -1357,6 +1429,7 @@ elif [ "$netd" = "r" ]; then
         mkdir /etc/rlinetd.d
         echo "directory \"/etc/rlinetd.d\"" >> /etc/rlinetd.conf
     }
+    ## SiCiaTeCh comments : change path for multi glftpd
     cat <<EOF > /etc/rlinetd.d/$servicename
 service "$servicename"
 {
@@ -1365,8 +1438,10 @@ service "$servicename"
 	family ipv6;
 	port "$servicename";
 	user "root";
-	exec "${tcpd:+$jaildir$glroot/bin/glftpd-full-static} $dummyflag -l -o -i -e -I -n 0 -b -x -r /glftpd/etc/glftpd.conf";
+	exec "${tcpd:+$jaildir$glroot/bin/glftpd-full-static} $dummyflag -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf";
 	server "${tcpd:-$jaildir$glroot/bin/glftpd-full-static}";
+	# exec "${tcpd:+$jaildir$glroot/bin/glftpd} $dummyflag -l -o -i $confpath $glstrings $euroweek";
+	# server "${tcpd:-$jaildir$glroot/bin/glftpd}";
 }
 EOF
     echo "Done."
@@ -1379,14 +1454,17 @@ EOF
     fi
 elif [ "$netd" = "s" ]; then
     echo -n "Configuring systemd for glftpd . . . "
+    ## SiCiaTeCh comments : change path for multi glftpd
 cat <<EOF > "/etc/systemd/system/$servicename@.service"
 [Unit]
 Description=$servicename per connection server
 [Service]
-ExecStart=-$jaildir$glroot/bin/glftpd-full-static -l -o -i -e -I -n 0 -b -x -r /glftpd/etc/glftpd.conf
+# ExecStart=-$jaildir$glroot/bin/glftpd -l -i -o $confpath $glstrings $euroweek
+ExecStart=-$jaildir$glroot/bin/glftpd-full-static -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf
 StandardInput=socket
 SyslogFacility=ftp
 EOF
+## SiCiaTeCh comments : change max connextion to 300
 cat <<EOF > "/etc/systemd/system/$servicename.socket"
 [Unit]
 Description=$servicename socket
@@ -1394,7 +1472,7 @@ Description=$servicename socket
 ReusePort=true
 ListenStream=[::]:$port
 Accept=yes
-MaxConnections=300
+#MaxConnections=300
 [Install]
 WantedBy=sockets.target
 EOF
@@ -1459,7 +1537,7 @@ fi
 echo -ne "\nAdding crontab entry to tabulate site stats nightly . . . "
 
 { crontab -l | grep -v "$jaildir$glroot/bin/reset"
-  echo "0 0 * * *		$jaildir$glroot/bin/reset ${euroweek}${confpath}"
+  echo "0 0 * * *      $jaildir$glroot/bin/reset ${euroweek}${confpath}"
 } | crontab - > /dev/null
 
 echo "Done."
