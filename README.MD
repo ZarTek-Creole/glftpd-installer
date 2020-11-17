@@ -3,6 +3,7 @@ VERSION MOD BY MalaGaM
 ## Change by MalaGaM
 * Select stable or beta version gl 32/64
 * install.sh : optimization and improvement of bash syntax
+* Automatic installation by apt of dependencies for debian
 
 ## To download
 
