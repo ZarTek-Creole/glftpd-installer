@@ -1,7 +1,13 @@
+VERSION MOD BY MalaGaM
+
+## Change by MalaGaM
+* Select stable or beta version gl 32/64
+* install.sh : optimization and improvement of bash syntax
+
 ## To download
 
 ``` 
-git clone https://github.com/teqnodude/glftpd-installer
+git clone https://github.com/MalaGaM/glftpd-installer
 ```
 
 ## Software
