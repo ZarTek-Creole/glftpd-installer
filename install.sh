@@ -10,7 +10,7 @@ DEBUGINSTALL=true
 
 	# Core variables configuration (don't touch)
 rootdir="$(pwd)"
-PACKAGES_NEEDED="libc6-i386 dnsutils git tcl8.6-dev tcllib autoconf bc curl diffutils ftp libflac-dev libssl-dev lm-sensors lynx make mariadb-server mkvtoolnix ncftp passwd rsync smartmontools tcl tcl-dev tcl-tls tcpd wget zip"
+PACKAGES_NEEDED="libncurses-dev libc6-i386 dnsutils git tcl8.6-dev tcllib autoconf bc curl diffutils ftp libflac-dev libssl-dev lm-sensors lynx make mariadb-server mkvtoolnix ncftp passwd rsync smartmontools tcl tcl-dev tcl-tls tcpd wget zip"
 BINARY_NEEDED="lynx wget tar tcpd gcc openssl dig nslookup cc bc du expr echo sed touch chmod pwd grep basename date mv bash find sort"
 
 GL_URL_WEBSITE="https://glftpd.io"
@@ -39,6 +39,11 @@ GIT_URL__GL_SCRIPTS__Tur__AutoNuke="https://github.com/MalaGaM/Tur-AutoNuke"
 GIT_URL__GL_SCRIPTS__Tur__AddIp="https://github.com/MalaGaM/Tur-AddIp"
 GIT_URL__GL_SCRIPTS__Tur__Oneline_Stats="https://github.com/MalaGaM/Tur-Oneline_Stats"
 GIT_URL__GL_SCRIPTS__Tur__Space="https://github.com/MalaGaM/Tur-Space"
+GIT_URL__GL_SCRIPTS__Tur__PreDirCheck="https://github.com/MalaGaM/Tur-PreDirCheck"
+GIT_URL__GL_SCRIPTS__Tur__PreDirCheck_Manager="https://github.com/MalaGaM/Tur-PreDirCheck_Manager"
+GIT_URL__GL_SCRIPTS__Tur__Rules="https://github.com/MalaGaM/Tur-Rules"
+GIT_URL__GL_SCRIPTS__Tur__Free="https://github.com/MalaGaM/Tur-Free"
+GIT_URL__GL_SCRIPTS__Tur__FTPWho="https://github.com/MalaGaM/Tur-FTPWho"
 
 
 PACKAGES_PATH="${rootdir}/packages"
@@ -51,6 +56,7 @@ BINARY_IP="$(which ip)"
 BINARY_LYNX="$(which lynx)"
 BINARY_GCC="$(which gcc)"
 BINARY_NCFTPLS="$(which ncftpls)"
+BINARY_TAR="$(which tar)"
 
 VER=9.10
 AUTHOR="SiteTechicien@GMail.Com"
@@ -107,10 +113,28 @@ BASH_INIT () {
 }
 GLFTPD_CONF_INIT () {
 	Banner_Show "Configuration GLFTPD" silent
-	until [ -n "$glroot" ]; do
-		echo -n "Please enter the private directory to install glftpd [/glftpd]: "
+	echo "--------[ Server configuration ]--------------------------------------"
+	echo
+	if [[ -f "$cache" && "$(grep -c -w GL_SiteName "$cache")" = 1 ]]; then
+		GL_SiteName="$(grep -w GL_SiteName "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	fi
+	
+	echo
+	while [[ -z "${GL_SiteName}" ]]; do
+		echo -n "Please enter the name of the site, without space : " ; read -r GL_SiteName
+	done
+	# replace space by _
+	GL_SiteName="${GL_SiteName// /_}"
+	
+	if [ ! -f "$cache" ]; then
+		echo GL_SiteName=\""${GL_SiteName}"\" > "$cache"
+	fi
+	# export sitename
+	export ${GL_SiteName}
+	until [ -n "${glroot}" ]; do
+		echo -n "Please enter the private directory to install glftpd [/glftpd/"${GL_SiteName}"]: "
 		read -r glroot
-		case "$glroot" in
+		case ${glroot} in
 			/)
 				echo "You can't have / as your private dir!  Try again."
 				echo ""
@@ -118,13 +142,13 @@ GLFTPD_CONF_INIT () {
 				continue
 			;;
 			/*|"")
-			[ -z "$glroot" ] && glroot="/glftpd"
-				[ -d "$glroot" ] && {
+			[ -z "${glroot}" ] && glroot="/glftpd/${GL_SiteName}"
+				[ -d "${glroot}" ] && {
 					echo -n "Path already exists. [D]elete it, [A]bort, [T]ry again, [I]gnore? "
 					read -r reply
 					case "$reply" in
 						[dD]*)
-							rm -rf "$glroot"
+							rm -rf "${glroot}"
 						;;
 						[tT]*)
 							unset glroot;
@@ -139,7 +163,7 @@ GLFTPD_CONF_INIT () {
 						;;
 					esac
 				}
-				FCT_CreateDir "$glroot"
+				mkdir -p ${glroot}
 				continue
 			;;
 			*)
@@ -152,24 +176,8 @@ GLFTPD_CONF_INIT () {
 	done 
 	# Export for install.sh glftpd
 	export glroot
+	echo " ----------------------------> glroot ${glroot} <----------------------------"
 
-	echo "--------[ Server configuration ]--------------------------------------"
-	echo
-	if [[ -f "$cache" && "$(grep -c -w GL_SiteName "$cache")" = 1 ]]; then
-		GL_SiteName="$(grep -w GL_SiteName "$cache" | cut -d "=" -f2 | tr -d "\"")"
-	return
-	fi
-	
-	echo
-	while [[ -z "${GL_SiteName}" ]]; do
-		echo -n "Please enter the name of the site, without space : " ; read -r GL_SiteName
-	done
-	# replace space by _
-	GL_SiteName="${GL_SiteName// /_}"
-	
-	if [ ! -f "$cache" ]; then
-		echo GL_SiteName=\""${GL_SiteName}"\" > "$cache"
-	fi
 }
 
 GLFTPD_CONF_PORT () {
@@ -222,18 +230,20 @@ GLFTPD_CONF_VERSION () {
 }
 GLFTPD_DOWNLOAD () {
 	Banner_Show "Download GLFTPD" silent
-	FCT_CreateDir "${PACKAGES_PATH_DOWNLOADS}"
+	TMP_DIR_DEST_DOWNLOAD="${PACKAGES_PATH_DOWNLOADS}/${GL_SiteName}"
+	mkdir -p ${TMP_DIR_DEST_DOWNLOAD}
 	GL_VERS_LATEST="$("${BINARY_LYNX}" --dump "${GL_URL_WEBSITE}" | grep "${GL_VERS_BRANCH}" | cut -d ":" -f2 | sed -e 's/20[1-9][0-9].*//' -e 's/^  //' -e 's/^v//' | tr "[:space:]" "_" | sed 's/_$//')"
 	GL_ARCHIVE_FILE="$("${BINARY_WGET}" -q -O - "${GL_URL_WEBSITE}/files/" | grep "LNX-"${GL_VERS_LATEST}".*x"${GL_ARCH}".*" | grep -o -P '(?=glftpd).*(?=.tgz">)').tgz"
-	GL_ARCHIVE_PATH="${PACKAGES_PATH_DOWNLOADS}/${GL_ARCHIVE_FILE}"
+	GL_ARCHIVE_PATH="${TMP_DIR_DEST_DOWNLOAD}/${GL_ARCHIVE_FILE}"
+	GL_DIR_SOURCE="${GL_ARCHIVE_PATH/.tgz/}"
 	if [ -f "${GL_ARCHIVE_PATH}" ] ; then
-		echo "Package glftpd '"${GL_ARCHIVE_FILE}"' exists, no downloading again."
+		echo "Package glftpd '"${TMP_DIR_DEST_DOWNLOAD}"' exists, no downloading again."
 	else
-		echo -n "Downloading relevant packages '"${GL_ARCHIVE_FILE}"', please wait..."
+		echo "Downloading relevant packages '"${GL_ARCHIVE_PATH}"', please wait..."
 		${BINARY_WGET} -q "${GL_URL_WEBSITE}/files/${GL_ARCHIVE_FILE}" -O "${GL_ARCHIVE_PATH}"
 		
 		echo "Extracting glftpd Source files, please wait..."
-		tar xfv "${GL_ARCHIVE_PATH}" -C "${PACKAGES_PATH_DOWNLOADS}"
+		FCT_EXEC_SHOW_ERROR ${BINARY_TAR} xfv ${GL_ARCHIVE_PATH} -C ${TMP_DIR_DEST_DOWNLOAD}/
 	fi
 }
 UNIX_CREATE_USER_AND_GROUP () {
@@ -246,7 +256,7 @@ UNIX_CREATE_USER_AND_GROUP () {
 	# Create unix user for eggdrop if dont exists
 	CHKUS="$(grep -w "${UNIX_USER_EGGDROP}" /etc/passwd | cut -d ":" -f1)"
 	if [ "$CHKUS" != "${UNIX_USER_EGGDROP}" ]; then
-		useradd -d "$glroot/sitebot" -m -g glftpd -s /bin/bash "${UNIX_USER_EGGDROP}"
+		useradd -d "${glroot}/sitebot" -m -g glftpd -s /bin/bash "${UNIX_USER_EGGDROP}"
 		chfn -f 0 -r 0 -w 0 -h 0 "${UNIX_USER_EGGDROP}"
 		if [ "$DEBUGINSTALL" = true ] ; then echo "User "${UNIX_USER_EGGDROP}" added"; fi
 	fi 
@@ -264,7 +274,7 @@ EGGDROP_DOWNLOAD () {
 	#cd ..
 	
 
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/cleanup.sh" ""${rootdir}"/cleanup-"${GL_SiteName}".sh"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/uninstall.sh" ""${rootdir}"/uninstall-"${GL_SiteName}".sh"
 }
 
 GLFTPD_CONF_DEVICE () {
@@ -275,7 +285,7 @@ GLFTPD_CONF_DEVICE () {
 		echo "glFTPD ARCH        = "${GL_ARCH}"" 
 		echo "Device             = "${GL_Device}""
 	else
-		echo "Please enter which device you will use for the "$glroot/site" folder"
+		echo "Please enter which device you will use for the "${glroot}/site" folder"
 		echo "eg /dev/sda1"
 		echo "eg /dev/mapper/lvm-lvm"
 		echo "eg /dev/md0"
@@ -296,7 +306,7 @@ GLFTPD_CONF_DEVICE () {
 	fi
 }
 
-EGGDROP_CONF_CHANNELS () {
+EGGDROP_CONF_CHANNELS_ADD () {
 	#FCT_CreateDir ".tmp"
 	if [[ -f "$cache" && "$(grep -c -w EGG_IRC_SERVER "$cache")" = 1 ]]; then
 		EGG_IRC_SERVER=$(grep -w EGG_IRC_SERVER "$cache" | cut -d "=" -f2 | tr -d "\"")
@@ -324,7 +334,7 @@ EGGDROP_CONF_CHANNELS () {
 			channame="$(grep -w "channame$((counta+1))" "$cache" | cut -d "=" -f2 | tr -d "\"" | cut -d " " -f1)"
 			echo "Channel "$((counta+1))"          = "$channame""
 		else	
-			echo "Include # in name of channel ie #main"
+			echo "Include # in name of channel ie #"${GL_SiteName}""
 			while [[ -z "$channame" ]]; do
 				echo -n "Channel "$((counta+1))" is : " ; read -r channame
 			done
@@ -339,7 +349,7 @@ EGGDROP_CONF_CHANNELS () {
 		
 		case "$chanpasswd" in
 			[Yy])
-				if [[ -f "$cache" && "$(grep -c -w "announcechannels" "$cache")" = 1 ]]; then
+				if [[ -f "$cache" && "$(grep -c -w "EGGDROP_CONF_ANNOUNCE_CHANNELS" "$cache")" = 1 ]]; then
 					echo "Channel mode       = password protected"
 				fi
 			
@@ -373,7 +383,7 @@ EGGDROP_CONF_CHANNELS () {
 			
 			;;
 			[Nn])
-				if [[ -f "$cache" && "$(grep -c -w "announcechannels" "$cache")" = 1 ]]; then
+				if [[ -f "$cache" && "$(grep -c -w "EGGDROP_CONF_ANNOUNCE_CHANNELS" "$cache")" = 1 ]]; then
 					echo "Channel mode       = invite only"
 				fi
 
@@ -394,7 +404,7 @@ EGGDROP_CONF_CHANNELS () {
 			
 			;;
 			*)
-				if [[ -f "$cache" && "$(grep -c -w "announcechannels" "$cache")" = 1 ]]; then
+				if [[ -f "$cache" && "$(grep -c -w "EGGDROP_CONF_ANNOUNCE_CHANNELS" "$cache")" = 1 ]]; then
 					echo "Channel mode       = invite only"
 				fi
 				echo "channel set "$channame" chanmode {+ntpsi}" >> "${rootdir}/.tmp/bot.chan.tmp"
@@ -421,48 +431,48 @@ EGGDROP_CONF_CHANNELS () {
 
 }
 
-announce () {
+EGGDROP_CONF_ANNOUNCE_CHANNELS () {
 	sed -i -e :a -e N -e 's/\n/ /' -e ta "${rootdir}/.tmp/channels"
-	if [[ -f "$cache" && "$(grep -c -w announcechannels "$cache")" = 1 ]]; then
-		announcechannels="$(grep -w announcechannels "$cache" | cut -d "=" -f2 | tr -d "\"")"
-		echo "Announce channels  = "$announcechannels""
+	if [[ -f "$cache" && "$(grep -c -w EGGDROP_CONF_ANNOUNCE_CHANNELS "$cache")" = 1 ]]; then
+		EGGDROP_CONF_ANNOUNCE_CHANNELS="$(grep -w EGGDROP_CONF_ANNOUNCE_CHANNELS "$cache" | cut -d "=" -f2 | tr -d "\"")"
+		echo "Announce channels  = "${EGGDROP_CONF_ANNOUNCE_CHANNELS}""
 	else
-		echo -n "Which should be announce channels,  default: "$(cat "${rootdir}/.tmp/channels")" : " ; read -r announcechannels
+		echo -n "Which should be announce channels,  default: "$(cat "${rootdir}/.tmp/channels")" : " ; read -r EGGDROP_CONF_ANNOUNCE_CHANNELS
 	fi
 	
-	if [ "$announcechannels" = "" ]; then
-		announcechannels="$(cat "${rootdir}/.tmp/channels")"
+	if [ "${EGGDROP_CONF_ANNOUNCE_CHANNELS}" = "" ]; then
+		EGGDROP_CONF_ANNOUNCE_CHANNELS="$(cat "${rootdir}/.tmp/channels")"
 		cat "${rootdir}/.tmp/channels" > "${rootdir}/.tmp/dzchan"
 	
-		if [ "$(grep -c -w announcechannels= "$cache")" = 0 ]; then
-			echo "announcechannels=\"$(cat "${rootdir}/.tmp/channels")\"" >> "$cache"
+		if [ "$(grep -c -w EGGDROP_CONF_ANNOUNCE_CHANNELS= "$cache")" = 0 ]; then
+			echo "EGGDROP_CONF_ANNOUNCE_CHANNELS=\"$(cat "${rootdir}/.tmp/channels")\"" >> "$cache"
 		fi
 		
 	else 
-		echo "$announcechannels" > "${rootdir}/.tmp/dzchan"
+		echo "${EGGDROP_CONF_ANNOUNCE_CHANNELS}" > "${rootdir}/.tmp/dzchan"
 	
-		if [ "$(grep -c -w announcechannels= "$cache")" = 0 ]; then
-			echo "announcechannels=\"$announcechannels\"" >> "$cache"
+		if [ "$(grep -c -w EGGDROP_CONF_ANNOUNCE_CHANNELS= "$cache")" = 0 ]; then
+			echo "EGGDROP_CONF_ANNOUNCE_CHANNELS=\"${EGGDROP_CONF_ANNOUNCE_CHANNELS}\"" >> "$cache"
 		fi
 	
 	fi
 }
 
-opschan () {
-	if [[ -f "$cache" && "$(grep -c -w channelops "$cache")" = 1 ]]; then
-		channelops="$(grep -w channelops "$cache" | cut -d "=" -f2 | tr -d "\"")"
-		echo "Ops channel        = "$channelops""
+EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN () {
+	if [[ -f "$cache" && "$(grep -c -w EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN "$cache")" = 1 ]]; then
+		EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN="$(grep -w EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN "$cache" | cut -d "=" -f2 | tr -d "\"")"
+		echo "Ops channel        = "${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}""
 	else
 		echo "Channels: "$(cat "${rootdir}/.tmp/channels")""
-		while [[ -z "$channelops" ]]; do
-			echo -n "Which of these channels as ops channel ? : " ; read -r channelops
+		while [[ -z "${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}" ]]; do
+			echo -n "Which of these channels as ops channel ? : " ; read -r EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN
 		done
 	fi
 	
-	echo "$channelops" > "${rootdir}/.tmp/dzochan"
+	echo "${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}" > "${rootdir}/.tmp/dzochan"
 	
-	if [ "$(grep -c -w channelops= "$cache")" = 0 ]; then
-		echo "channelops=\"$channelops\"" >> "$cache"
+	if [ "$(grep -c -w EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN= "$cache")" = 0 ]; then
+		echo "EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN=\"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}\"" >> "$cache"
 	fi
 	
 	rm "${rootdir}/.tmp/channels"
@@ -484,7 +494,7 @@ EGG__YOUR_IRC_NICKNAME () {
 }
 
 ## how many sections
-section_names () {
+GLFTPD_CONF_SECTIONS_NAME () {
 	#FCT_CreateDir ".tmp"
 	if [[ -f "$cache" && "$(grep -c -w sections "$cache")" = 1 ]]; then
 		sections="$(grep -w sections "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -497,9 +507,6 @@ section_names () {
 		done
 	fi
 	
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/tur-rules.sh.org" "${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/tur-rules.sh"
-	"${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/rulesgen.sh" GENERAL
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-autonuke/tur-autonuke.conf.org" "${PACKAGES_PATH_GL_SCRIPTS}/tur-autonuke/tur-autonuke.conf"
 	FCT_INSTALL "${PACKAGES_PATH_DATA}/dated.sh.org" "${rootdir}/.tmp/dated.sh"
 	counta=0
 	
@@ -520,7 +527,7 @@ section_generate () {
 	else
 		echo -n "Section "$((counta+1))" is : " ; read -r section
 	fi
-	case "${section^^}" in 0DAY|ANIME|APPS|DVDR|EBOOKS|FLAC|GAMES|MP3|MBLURAY|MVDVDR|NSW|PDA|PS4|TV-HD|TV-NL|TV-SD|X264|X265-2160|XVID|XXX|XXX-PAYSITE)
+	case ${section^^} in 0DAY|ANIME|APPS|DVDR|EBOOKS|FLAC|GAMES|MP3|MBLURAY|MVDVDR|NSW|PDA|PS4|TV-HD|TV-NL|TV-SD|X264|X265-2160|XVID|XXX|XXX-PAYSITE)
 			writ
 		;;
 		*)
@@ -537,14 +544,15 @@ writ () {
 	section="${section^^}"
 	if [[ "${section^^}" = 0DAY || "${section^^}" = FLAC || "${section^^}" = MP3 || "${section^^}" = EBOOKS ]]; then
 	
-		FCT_CreateDir "${rootdir}/.tmp/site/${section^^}"
+		# FCT_CreateDir "${rootdir}/.tmp/site/${section^^}"
+		mkdir -p "${rootdir}/.tmp/site/${section^^}"
 		FCT_CHMOD 777 "${rootdir}/.tmp/site/${section^^}"
 		echo "${section^^} " > "${rootdir}/.tmp/.section" 
 		cat "${rootdir}/.tmp/.section" >> "${rootdir}/.tmp/.sections"
 		awk -F '[" "]+' '{printf "$0"}' "${rootdir}/.tmp/.sections" > "${rootdir}/.tmp/.validsections"
 		#echo "set statsection($counta) \"${section^^}\"" >> "${rootdir}/.tmp/dzsstats"
 		echo "set paths("${section^^}")				\"/site/"${section^^}"/*/*\"" >> "${rootdir}/.tmp/dzsrace"
-		echo "set chanlist("${section^^}") 			\""$announcechannels"\"" >> "${rootdir}/.tmp/dzschan"
+		echo "set chanlist("${section^^}") 			\""${EGGDROP_CONF_ANNOUNCE_CHANNELS}"\"" >> "${rootdir}/.tmp/dzschan"
 		#echo "#stat_section 	${section^^}	/site/"${section^^}"/* no" >> "${rootdir}/.tmp/glstat"
 				printf '%s\n' \
 						"section."${section^^}".name="${section^^}"" \
@@ -555,8 +563,8 @@ writ () {
 
 		sed -i "s/\bDIRS=\"/DIRS=\"\n\/site\/${section^^}\/\$today/" "${PACKAGES_PATH_GL_SCRIPTS}/tur-autonuke/tur-autonuke.conf"
 		sed -i "s/\bDIRS=\"/DIRS=\"\n\/site\/${section^^}\/\$yesterday/" "${PACKAGES_PATH_GL_SCRIPTS}/tur-autonuke/tur-autonuke.conf"
-		echo "INC${section^^}="${GL_Device}":"$glroot/site/${section^^}":DATED" >> "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
-		echo "$glroot/site/${section^^}" >> "${rootdir}/.tmp/.fullpath"
+		echo "INC${section^^}="${GL_Device}":"${glroot}/site/${section^^}":DATED" >> "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
+		echo "${glroot}/site/${section^^}" >> "${rootdir}/.tmp/.fullpath"
 	
 		if [[ "${section^^}" = FLAC || "${section^^}" = MP3 ]]; then
 			echo "/site/"${section^^}"/ " > "${rootdir}/.tmp/.section" 
@@ -569,15 +577,15 @@ writ () {
 		fi
 	
 	else
-	
-		FCT_CreateDir "${rootdir}/.tmp/site/${section^^}"
+		# FCT_CreateDir "${rootdir}/.tmp/site/${section^^}"
+		mkdir -p "${rootdir}/.tmp/site/${section^^}"
 		FCT_CHMOD 777 "${rootdir}/.tmp/site/${section^^}"
 		echo "${section^^} " > "${rootdir}/.tmp/.section"
 		cat "${rootdir}/.tmp/.section" >> "${rootdir}/.tmp/.sections"
 		awk -F '[" "]+' '{printf "$0"}' "${rootdir}/.tmp/.sections" > "${rootdir}/.tmp/.validsections"
 		#echo "set statsection($counta) \"${section^^}\"" >> "${rootdir}/.tmp/dzsstats"
 		echo "set paths("${section^^}") 			\"/site/"${section^^}"/*\"" >> "${rootdir}/.tmp/dzsrace"
-		echo "set chanlist("${section^^}") 			\""$announcechannels"\"" >> "${rootdir}/.tmp/dzschan"
+		echo "set chanlist("${section^^}") 			\""${EGGDROP_CONF_ANNOUNCE_CHANNELS}"\"" >> "${rootdir}/.tmp/dzschan"
 		echo "/site/"${section^^}"/ " > "${rootdir}/.tmp/.section"
 		cat "${rootdir}/.tmp/.section" >> "${rootdir}/.tmp/.temp"
 		awk -F '[" "]+' '{printf "$0"}' "${rootdir}/.tmp/.temp" > "${rootdir}/.tmp/.path"
@@ -590,8 +598,8 @@ writ () {
 			>> "${rootdir}/.tmp/footools"
 
 		sed -i "s/\bDIRS=\"/DIRS=\"\n\/site\/${section^^}/" "${PACKAGES_PATH_GL_SCRIPTS}/tur-autonuke/tur-autonuke.conf"
-		echo "INC${section^^}="${GL_Device}":"$glroot/site/${section^^}":" >> "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
-		echo "$glroot/site/"${section^^}"" >> "${rootdir}/.tmp/.fullpath"
+		echo "INC${section^^}="${GL_Device}":"${glroot}/site/${section^^}":" >> "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
+		echo "${glroot}/site/"${section^^}"" >> "${rootdir}/.tmp/.fullpath"
 		
 		if [ "$(grep -c -w section$((counta+1))= "$cache")" = 0 ]; then
 			echo "section$((counta+1))=\"$section\"" >> "$cache"
@@ -607,8 +615,8 @@ incom () {
 }
 
 
-## GLFTPD
-glftpd () {
+## GLFTPD_INSTALL
+GLFTPD_INSTALL () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__eur0_pre_system "$cache")" = 1 ]]; then
 		echo "Sections           = "$(cat "${rootdir}/.tmp/.validsections")""
 	fi
@@ -627,19 +635,20 @@ glftpd () {
 
 	echo
 	echo "--------[ Installation of software and scripts ]----------------------"
-	"${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/rulesgen.sh" MISC
+	
 	cd "${PACKAGES_PATH}" || exit
 	echo
-	echo -n "Installing glftpd, please wait..."
+	echo "Installing glftpd, please wait..."
 	echo "####### Here starts glFTPD scripts #######" >> /var/spool/cron/crontabs/root
-	cd "${GL_ARCHIVE_FILE}DIR" || exit
-	sed "s/changeme/${GL_Port}/" "${PACKAGES_PATH_DATA}/installgl.sh.org" > installgl.sh 
-	FCT_CHMOD +x installgl.sh 
-	./installgl.sh 
+	cd "${GL_DIR_SOURCE}" || exit
+	sed "s/changeme/${GL_Port}/" "${PACKAGES_PATH_DATA}/installgl.sh.org" > "${GL_DIR_SOURCE}/installgl.sh"
+	FCT_CHMOD +x "${GL_DIR_SOURCE}/installgl.sh"
+	"${GL_DIR_SOURCE}/installgl.sh"
 	servicename="glftpd-${GL_SiteName}"
 	echo "----> debug ----> $servicename"
-	FCT_CreateDir "$glroot/ftp-data/misc/"
-	echo "By SiteTechicien@GMail.Com" >> "$glroot/ftp-data/misc/welcome.msg"
+	#FCT_CreateDir "${glroot}/ftp-data/misc/"
+	mkdir -p "${glroot}/ftp-data/misc/"
+	echo "By SiteTechicien@GMail.Com" >> "${glroot}/ftp-data/misc/welcome.msg"
 	echo -e "[\e[32mDone\e[0m]"
 	cd "${PACKAGES_PATH_DATA}" || exit
 		printf '%s\n' \
@@ -713,54 +722,46 @@ glftpd () {
 	
 	#cat glstat >> glftpd.conf && rm glstat
 	cat glfoot >> glftpd.conf 
-	FCT_INSTALL glftpd.conf "$glroot/etc"
-	FCT_INSTALL default.user "$glroot/ftp-data/users"
+	FCT_INSTALL glftpd.conf "${glroot}/etc"
+	FCT_INSTALL default.user "${glroot}/ftp-data/users"
 	printf '%s\n' \
-		"59 23 * * * 		$(which chroot) "$glroot" /bin/cleanup >/dev/null 2>&1"		\
-		"29 4 * * * 		$(which chroot) "$glroot" /bin/datacleaner >/dev/null 2>&1"	\
-		"*/10 * * * *		"$glroot/bin/incomplete-list-nuker.sh" >/dev/null 2>&1"		\
-		"0 1 * * *			"$glroot/bin/olddirclean2" -PD >/dev/null 2>&1"				\
+		"59 23 * * * 		$(which chroot) "${glroot}" /bin/cleanup >/dev/null 2>&1"		\
+		"29 4 * * * 		$(which chroot) "${glroot}" /bin/datacleaner >/dev/null 2>&1"	\
+		"*/10 * * * *		"${glroot}/bin/incomplete-list-nuker.sh" >/dev/null 2>&1"		\
+		"0 1 * * *			"${glroot}/bin/olddirclean2" -PD >/dev/null 2>&1"				\
 	>> /var/spool/cron/crontabs/root
-	touch "$glroot/ftp-data/logs/incomplete-list-nuker.log"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-precheck/tur-precheck.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-predircheck/tur-predircheck.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-predircheck_manager/tur-predircheck_manager.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-free/tur-free.sh" "$glroot/bin"
-	sed -i '/^SECTIONS/a '"TOTAL:"${GL_Device}"" "$glroot/bin/tur-free.sh"
-	sed -i "s/changeme/"${GL_SiteName}"/" "$glroot/bin/tur-free.sh"
-	${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/tur-predircheck/glftpd2/dirloglist_gl.c" -o "$glroot/bin/dirloglist_gl"
-	${BINARY_GCC} -O2 "${PACKAGES_PATH_GL_SCRIPTS}/tur-ftpwho/tur-ftpwho.c" -o "$glroot/bin/tur-ftpwho"
-	${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/tuls/tuls.c" -o "$glroot/bin/tuls"
-	rm -f "$glroot/README"
-	rm -f "$glroot/README.ALPHA"
-	rm -f "$glroot/UPGRADING"
-	rm -f "$glroot/changelog"
-	rm -f "$glroot/LICENSE"
-	rm -f "$glroot/glftpd.conf"
-	rm -f "$glroot/installgl.debug"
-	rm -f "$glroot/installgl.sh"
-	rm -f "$glroot/glftpd.conf.dist"
-	rm -f "$glroot/convert_to_2.0.pl"
+	touch "${glroot}/ftp-data/logs/incomplete-list-nuker.log"
+	${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/tuls/tuls.c" -o "${glroot}/bin/tuls"
+	rm -f "${glroot}/README"
+	rm -f "${glroot}/README.ALPHA"
+	rm -f "${glroot}/UPGRADING"
+	rm -f "${glroot}/changelog"
+	rm -f "${glroot}/LICENSE"
+	rm -f "${glroot}/glftpd.conf"
+	rm -f "${glroot}/installgl.debug"
+	rm -f "${glroot}/installgl.sh"
+	rm -f "${glroot}/glftpd.conf.dist"
+	rm -f "${glroot}/convert_to_2.0.pl"
 	rm -f /etc/glftpd.conf
-	FCT_INSTALL "$glroot/create_server_key.sh" "$glroot/etc"
-	FCT_INSTALL "../../site.rules" "$glroot/ftp-data/misc"
-	FCT_INSTALL incomplete-list.sh "$glroot/bin"
-	FCT_INSTALL incomplete-list-nuker.sh "$glroot/bin"
-	FCT_CHMOD 755 "$glroot/site"
-	ln -s "$glroot/etc/glftpd.conf" /etc/glftpd.conf
-	FCT_CHMOD 777 "$glroot/ftp-data/msgs"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/update_perms.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/mkv_check.sh" "$glroot/bin"
-	FCT_INSTALL "$(which mkvinfo)" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/glftpd-version_check.sh" "$glroot/bin"
-	echo "0 18 * * *              "$glroot/bin/glftpd-version_check.sh" >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/section_manager/section_manager.sh" "$glroot"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/imdbrating/imdbrating.sh" "$glroot"
-	sed -i "s|changeme|"${GL_Device}"|" "$glroot/section_manager.sh"
-	chown -R root:root "$glroot/bin"
-	FCT_CHMOD u+s "$glroot/bin/undupe"
-	FCT_CHMOD u+s "$glroot/bin/sed"
-	FCT_CHMOD u+s "$glroot/bin/nuker"
+	FCT_INSTALL "${glroot}/create_server_key.sh" "${glroot}/etc"
+	FCT_INSTALL "../../site.rules" "${glroot}/ftp-data/misc"
+	FCT_INSTALL incomplete-list.sh "${glroot}/bin"
+	FCT_INSTALL incomplete-list-nuker.sh "${glroot}/bin"
+	FCT_CHMOD 755 "${glroot}/site"
+	ln -s "${glroot}/etc/glftpd.conf" /etc/glftpd.conf
+	FCT_CHMOD 777 "${glroot}/ftp-data/msgs"
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/update_perms.sh" "${glroot}/bin"
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/mkv_check.sh" "${glroot}/bin"
+	FCT_INSTALL "$(which mkvinfo)" "${glroot}/bin"
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/glftpd-version_check.sh" "${glroot}/bin"
+	echo "0 18 * * *              "${glroot}/bin/glftpd-version_check.sh" >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/section_manager/section_manager.sh" "${glroot}"
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/imdbrating/imdbrating.sh" "${glroot}"
+	sed -i "s|changeme|"${GL_Device}"|" "${glroot}/section_manager.sh"
+	chown -R root:root "${glroot}/bin"
+	FCT_CHMOD u+s "${glroot}/bin/undupe"
+	FCT_CHMOD u+s "${glroot}/bin/sed"
+	FCT_CHMOD u+s "${glroot}/bin/nuker"
 	if [ -f /etc/systemd/system/glftpd.socket ]; then
 		sed -i 's/#MaxConnections=64/MaxConnections=300/' /etc/systemd/system/glftpd.socket
 	fi
@@ -770,14 +771,11 @@ glftpd () {
 
 ## EGGDROP
 EGG_INSTALL () {
-	# if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__eur0_pre_system "$cache")" = 0 ]]; then
-		# echo
-	# fi
-	Banner_Show "Installing eggdrop to '"$glroot/sitebot"'" silent
+	Banner_Show "Installing eggdrop to '"${glroot}/sitebot"'" silent
 	cd "${PACKAGES_PATH_DOWNLOADS}/eggdrop" || exit ;
 	echo "Compilling eggdrop, please wait..."
 	
-	FCT_EXEC_SHOW_ERROR ./configure --prefix="$glroot/sitebot"
+	FCT_EXEC_SHOW_ERROR ./configure --prefix="${glroot}/sitebot"
 	echo "eggdrop : make config, please wait..."
 	FCT_EXEC_SHOW_ERROR make config 
 	echo "eggdrop : make, please wait..."
@@ -788,85 +786,84 @@ EGG_INSTALL () {
 	FCT_EXEC_SHOW_ERROR make sslsilent;
 	cd "${PACKAGES_PATH_DATA}" || exit
 	
-	FCT_CreateDir "$glroot/sitebot/data"
-	FCT_CHMOD 777 "$glroot/sitebot/data"
+	# FCT_CreateDir "${glroot}/sitebot/data"
+	mkdir -p "${glroot}/sitebot/data"
+	FCT_CHMOD 777 "${glroot}/sitebot/data"
 	cat egghead > "${GL_SiteName}.conf"
 	cat "${rootdir}/.tmp/eggchan" >> "${GL_SiteName}.conf"
-	sed -e "s/changeme/"${GL_SiteName}"/" bot.chan > ""$glroot"/sitebot/data/"${GL_SiteName}".chan"
-	cat "${rootdir}/.tmp/bot.chan.tmp" >> ""$glroot"/sitebot/data/"${GL_SiteName}".chan"
+	sed -e "s/changeme/"${GL_SiteName}"/" bot.chan > ""${glroot}"/sitebot/data/"${GL_SiteName}".chan"
+	cat "${rootdir}/.tmp/bot.chan.tmp" >> ""${glroot}"/sitebot/data/"${GL_SiteName}".chan"
 		printf '%s\n' \
-				"set username			\""${GL_SiteName}"\""       \
-				"set nick				\""${GL_SiteName}"\""       \
-				"set altnick			\"_"${GL_SiteName}"\""      \
+			"set username			\""${GL_SiteName}"\""       \
+			"set nick				\""${GL_SiteName}"\""       \
+			"set altnick			\"_"${GL_SiteName}"\""      \
 		> ""${GL_SiteName}".conf"
 	sed -i "s/changeme/"$EGG__YOUR_IRC_NICKNAME"/" ""${GL_SiteName}".conf"
-	FCT_INSTALL "${GL_SiteName}.conf" "$glroot/sitebot"
+	FCT_INSTALL "${GL_SiteName}.conf" "${glroot}/sitebot"
 	FCT_INSTALL botchkhead .botchkhead
 		printf '%s\n' \
-				"botdir="$glroot"/sitebot"                \
-				"botscript=eggdrop"                     \
-				"botname="${GL_SiteName}""                     \
-				"userfile=./data/"${GL_SiteName}".user"        \
-				"pidfile=pid."${GL_SiteName}""                 \
+			"botdir="${glroot}"/sitebot"                \
+			"botscript=eggdrop"                     \
+			"botname="${GL_SiteName}""                     \
+			"userfile=./data/"${GL_SiteName}".user"        \
+			"pidfile=pid."${GL_SiteName}""                 \
 		> .botchkhead
 
 	FCT_CHMOD 755 .botchkhead
-	FCT_INSTALL .botchkhead "$glroot/sitebot/botchk"
-	cat botchkfoot >> "$glroot/sitebot/botchk"
+	FCT_INSTALL .botchkhead "${glroot}/sitebot/botchk"
+	cat botchkfoot >> "${glroot}/sitebot/botchk"
 	touch "/var/spool/cron/crontabs/"${UNIX_USER_EGGDROP}""
-	echo "*/10 * * * *	$glroot/sitebot/botchk >/dev/null 2>&1" >> "/var/spool/cron/crontabs/"${UNIX_USER_EGGDROP}""
-	FCT_CHMOD 777 "$glroot/sitebot/logs"
-	chown -R sitebot:glftpd "$glroot/sitebot/"
-	rm -f "$glroot/sitebot/BOT.INSTALL"
-	rm -f "$glroot/sitebot/README"
-	rm -f "$glroot/sitebot/eggdrop1.8"
-	rm -f "$glroot/sitebot/$glroot-tcl.old-TIMER"
-	rm -f "$glroot/sitebot/$glroot.tcl-TIMER"
-	rm -f "$glroot/sitebot/eggdrop"
-	rm -f "$glroot/sitebot/eggdrop-basic.conf"
-	rm -f "$glroot/sitebot/scripts/CONTENTS"
-	rm -f "$glroot/sitebot/scripts/autobotchk"
-	rm -f "$glroot/sitebot/scripts/botchk"
-	rm -f "$glroot/sitebot/scripts/weed"
-	ln -s "$glroot/sitebot/"$(ls "$glroot/sitebot/*eggdrop-*")"" "$glroot/sitebot/sitebot"
-	FCT_CHMOD 666 "$glroot/etc/glroot.conf"
-	FCT_CreateDir "$glroot/site/_PRE/SiteOP" "$glroot/site/_REQUESTS" "$glroot/site/_SPEEDTEST"
-	FCT_CHMOD 777 "$glroot/site/_PRE" "$glroot/site/_PRE/SiteOP" "$glroot/site/_REQUESTS" "$glroot/site/_SPEEDTEST"
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/150MB" bs=1M count=150 >/dev/null 2>&1
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/250MB" bs=1M count=250 >/dev/null 2>&1
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/500MB" bs=1M count=500 >/dev/null 2>&1
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/1GB" bs=1M count=1000 >/dev/null 2>&1
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/5GB" bs=1M count=5000 >/dev/null 2>&1
-	dd if=/dev/urandom of="$glroot/site/_SPEEDTEST/10GB" bs=1M count=10000 >/dev/null 2>&1
-	rm -f "$glroot/sitebot/scripts/*.tcl"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/*.tcl" "$glroot/sitebot/scripts"
-	sed -i "s/#changeme/"$announcechannels"/" "$glroot/sitebot/scripts/rud-news.tcl"
-	sed -i "s/#personal/"$channelops"/" "$glroot/sitebot/scripts/rud-news.tcl"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/tur-rules.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/*.tcl" "$glroot/sitebot/scripts"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-free/*.tcl" "$glroot/sitebot/scripts"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/tur-predircheck_manager/tur-predircheck_manager.tcl" "$glroot/sitebot/scripts"
-	sed -i "s/changeme/"$channelops"/g" "$glroot/sitebot/scripts/tur-predircheck_manager.tcl"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}kill.sh" "$glroot/sitebot"
-	sed -i "s/changeme/"${GL_SiteName}"/g" "$glroot/sitebot/kill.sh"
-	echo "source scripts/tur-free.tcl" >> "$glroot/sitebot/eggdrop.conf"
+	echo "*/10 * * * *	${glroot}/sitebot/botchk >/dev/null 2>&1" >> "/var/spool/cron/crontabs/"${UNIX_USER_EGGDROP}""
+	FCT_CHMOD 777 "${glroot}/sitebot/logs"
+	chown -R sitebot:glftpd "${glroot}/sitebot/"
+	rm -f "${glroot}/sitebot/BOT.INSTALL"
+	rm -f "${glroot}/sitebot/README"
+	rm -f "${glroot}/sitebot/eggdrop1.8"
+	rm -f "${glroot}/sitebot/${glroot}-tcl.old-TIMER"
+	rm -f "${glroot}/sitebot/${glroot}.tcl-TIMER"
+	rm -f "${glroot}/sitebot/eggdrop"
+	rm -f "${glroot}/sitebot/eggdrop-basic.conf"
+	rm -f "${glroot}/sitebot/scripts/CONTENTS"
+	rm -f "${glroot}/sitebot/scripts/autobotchk"
+	rm -f "${glroot}/sitebot/scripts/botchk"
+	rm -f "${glroot}/sitebot/scripts/weed"
+	ln -s "${glroot}/sitebot/"$(ls "${glroot}/sitebot/*eggdrop-*")"" "${glroot}/sitebot/sitebot"
+	FCT_CHMOD 666 "${glroot}/etc/glroot.conf"
+	# FCT_CreateDir "${glroot}/site/_PRE/SiteOP" "${glroot}/site/_REQUESTS" "${glroot}/site/_SPEEDTEST"
+	mkdir -p "${glroot}/site/_PRE/SiteOP" "${glroot}/site/_REQUESTS" "${glroot}/site/_SPEEDTEST"
+	FCT_CHMOD 777 "${glroot}/site/_PRE" "${glroot}/site/_PRE/SiteOP" "${glroot}/site/_REQUESTS" "${glroot}/site/_SPEEDTEST"
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/150MB" bs=1M count=150 >/dev/null 2>&1
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/250MB" bs=1M count=250 >/dev/null 2>&1
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/500MB" bs=1M count=500 >/dev/null 2>&1
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/1GB" bs=1M count=1000 >/dev/null 2>&1
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/5GB" bs=1M count=5000 >/dev/null 2>&1
+	dd if=/dev/urandom of="${glroot}/site/_SPEEDTEST/10GB" bs=1M count=10000 >/dev/null 2>&1
+	rm -f "${glroot}/sitebot/scripts/*.tcl"
+	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/*.tcl" "${glroot}/sitebot/scripts"
+	sed -i "s/#changeme/"${EGGDROP_CONF_ANNOUNCE_CHANNELS}"/" "${glroot}/sitebot/scripts/rud-news.tcl"
+	sed -i "s/#personal/"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}"/" "${glroot}/sitebot/scripts/rud-news.tcl"
+	
+	sed -i "s/changeme/"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}"/g" "${glroot}/sitebot/scripts/tur-predircheck_manager.tcl"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}kill.sh" "${glroot}/sitebot"
+	sed -i "s/changeme/"${GL_SiteName}"/g" "${glroot}/sitebot/kill.sh"
+	
 	echo -e "[\e[32mDone\e[0m]"
 }
 
-irc () {
+EGG_CONFIG_IRC () {
 	if [[ -f "$cache" && "$(grep -c -w EGG_IRC_SERVER "$cache")" = 1 ]]; then
-		sed -i "s/servername/"${EGG_IRC_SERVER}"/" "$glroot/sitebot/eggdrop.conf"
+		sed -i "s/EGG_IRC_SERVER/"${EGG_IRC_SERVER}"/" "${glroot}/sitebot/eggdrop.conf"
 	else
 		echo
-	    	echo -n "What irc server ? default irc.example.org : " ; read -r servername
+	    	echo -n "What irc server ? default irc.example.org : " ; read -r EGG_IRC_SERVER
 	
-		if [ "$servername" = "" ]; then
-			servername="irc.example.org"
+		if [ "$EGG_IRC_SERVER" = "" ]; then
+			EGG_IRC_SERVER="irc.example.org"
 		fi
 		
-		echo -n "What port for irc server ? default 7000 : " ; read -r serverport
-		if [ "$serverport" = "" ]; then
-			serverport="7000"
+		echo -n "What port for irc server ? default 7000 : " ; read -r EGG_IRC_PORT
+		if [ "${EGG_IRC_PORT}" = "" ]; then
+			EGG_IRC_PORT="7000"
 		fi
 		
 		echo -n "Is the port above a SSL port ? [Y]es [N]o, default Y : " ; read -r serverssl
@@ -885,34 +882,34 @@ irc () {
 		echo -n "Does it require a password ? [Y]es [N]o, default N : " ; read -r serverpassword
 		case "$serverpassword" in
 			[Yy])
-				echo -n "Please enter the password for irc server, default ircpassword : " ; read -r password
-				if [ "$password" = "" ]; then
-					password=":ircpassword"
+				echo -n "Please enter the password for irc server, default NULL : " ; read -r EGG_IRC_PASSWORD
+				if [ "${EGG_IRC_PASSWORD}" = "" ]; then
+					EGG_IRC_PASSWORD=""
 				else
-					password=":"$password""
+					EGG_IRC_PASSWORD=":"${EGG_IRC_PASSWORD}""
 				fi
 			;;
 			[Nn])
-				password=""
+				EGG_IRC_PASSWORD=""
 			;;
 			*)
-				password=""
+				EGG_IRC_PASSWORD=""
 			;;
 		esac
 		
 		case "$ssl" in
 			1)
-				sed -i "s/servername/"${servername}":+"${serverport}""${password}"/" "$glroot/sitebot/eggdrop.conf"
+				sed -i "s/EGG_IRC_SERVER/"${EGG_IRC_SERVER}":+"${EGG_IRC_PORT}""${EGG_IRC_PASSWORD}"/" "${glroot}/sitebot/eggdrop.conf"
 				
 				if [ "$(grep -c -w EGG_IRC_SERVER= "$cache")" = 0 ]; then
-					echo "${EGG_IRC_SERVER}=\""${servername}":+"${serverport}""${password}"\"" >> "$cache"
+					echo "${EGG_IRC_SERVER}=\""${EGG_IRC_SERVER}":+"${EGG_IRC_PORT}""${EGG_IRC_PASSWORD}"\"" >> "$cache"
 				fi
 			;;
 			0)
-				sed -i "s/servername/"${servername}":"${serverport}""${password}"/" "$glroot/sitebot/eggdrop.conf"
+				sed -i "s/EGG_IRC_SERVER/"${EGG_IRC_SERVER}":"${EGG_IRC_PORT}""${EGG_IRC_PASSWORD}"/" "${glroot}/sitebot/eggdrop.conf"
 				
 				if [ "$(grep -c -w EGG_IRC_SERVER= "$cache")" = 0 ]; then
-					echo "${EGG_IRC_SERVER}=\""${servername}":"${serverport}""${password}"\"" >> "$cache"
+					echo "${EGG_IRC_SERVER}=\""${EGG_IRC_SERVER}":"${EGG_IRC_PORT}""${EGG_IRC_PASSWORD}"\"" >> "$cache"
 				fi
 			;;
 		esac
@@ -920,8 +917,8 @@ irc () {
 }
 
 ## zsconfig.h
-pzshfile () {
-	cd ../../
+PZS_PATCH_CONFIG_FILE () {
+	cd "${PACKAGES_PATH_DOWNLOADS}/${GL_SiteName}/pzs-ng" || exit
 	cat "${PACKAGES_PATH_DATA}/pzshead" > zsconfig.h
 	path="$(cat ""${rootdir}"/.tmp/.path")"
 	printf '%s\n' \
@@ -933,14 +930,14 @@ pzshfile () {
 	>> zsconfig.h
 
 	FCT_CHMOD 755 zsconfig.h
-	FCT_INSTALL zsconfig.h "${PACKAGES_PATH}/pzs-ng/zipscript/conf/zsconfig.h"
+	FCT_INSTALL zsconfig.h "${PACKAGES_PATH_DOWNLOADS}/${GL_SiteName}/pzs-ng/zipscript/conf/zsconfig.h"
 }
 
 ## dZSbot.tcl
-pzsbotfile () {
+PZS_CONFIG_CHANNELS () {
 	echo "REQUEST" >> "${rootdir}/.tmp/.validsections"
 	echo "set paths(REQUEST)							\"/site/_REQUESTS/*/*\"" >> "${rootdir}/.tmp/dzsrace"
-	echo "set chanlist(REQUEST)							\"$announcechannels\"" >> "${rootdir}/.tmp/dzschan"
+	echo "set chanlist(REQUEST)							\"${EGGDROP_CONF_ANNOUNCE_CHANNELS}\"" >> "${rootdir}/.tmp/dzschan"
 	printf '%s\n' \
 			"$(cat "${PACKAGES_PATH_DATA}/dzshead")" \
 			"set device(0)"							'"'${GL_Device} SITE'"' \
@@ -956,35 +953,36 @@ pzsbotfile () {
 	FCT_CHMOD 644 ngBot.conf
 	rm "${rootdir}/.tmp/dzsrace"
 	rm "${rootdir}/.tmp/dzschan"
-	FCT_CreateDir "$glroot/sitebot/scripts/pzs-ng/themes"
-	FCT_INSTALL ngBot.conf "$glroot/sitebot/scripts/pzs-ng/ngBot.conf"
+	# FCT_CreateDir "${glroot}/sitebot/scripts/pzs-ng/themes"
+	mkdir -p "${glroot}/sitebot/scripts/pzs-ng/themes"
+	FCT_INSTALL ngBot.conf "${glroot}/sitebot/scripts/pzs-ng/ngBot.conf"
 }
 
 ## PROJECTZS
-pzsng () {
+PZS_INSTALL () {
 	# if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__eur0_pre_system "$cache")" = 0 ]]; then
 		# echo
 	# fi
-	echo -n "Installing pzs-ng, please wait..."
-	cd "${PACKAGES_PATH}/pzs-ng" || exit
+	echo "Installing pzs-ng, please wait..."
+	cd "${PACKAGES_PATH_DOWNLOADS}/${GL_SiteName}/pzs-ng" || exit
 	FCT_EXEC_SHOW_ERROR ./configure
 	FCT_EXEC_SHOW_ERROR make
 	FCT_EXEC_SHOW_ERROR make install
-	FCT_EXEC_SHOW_ERROR "$glroot/libcopy.sh"
+	FCT_EXEC_SHOW_ERROR "${glroot}/libcopy.sh"
 	echo -e "[\e[32mDone\e[0m]"
-	FCT_INSTALL sitebot/ngB* "$glroot/sitebot/scripts/pzs-ng/"
-	FCT_INSTALL sitebot/modules "$glroot/sitebot/scripts/pzs-ng/"
-	FCT_INSTALL sitebot/plugins "$glroot/sitebot/scripts/pzs-ng/"
-	FCT_INSTALL sitebot/themes "$glroot/sitebot/scripts/pzs-ng/"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/glftpd.installer.theme" "$glroot/sitebot/scripts/pzs-ng/themes"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/ngBot.vars" "$glroot/sitebot/scripts/pzs-ng"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/sitewho.conf" "$glroot/bin"
+	FCT_INSTALL sitebot/ngB* "${glroot}/sitebot/scripts/pzs-ng/"
+	FCT_INSTALL sitebot/modules "${glroot}/sitebot/scripts/pzs-ng/"
+	FCT_INSTALL sitebot/plugins "${glroot}/sitebot/scripts/pzs-ng/"
+	FCT_INSTALL sitebot/themes "${glroot}/sitebot/scripts/pzs-ng/"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/glftpd.installer.theme" "${glroot}/sitebot/scripts/pzs-ng/themes"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/ngBot.vars" "${glroot}/sitebot/scripts/pzs-ng"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/sitewho.conf" "${glroot}/bin"
 	cd "${PACKAGES_PATH_GL_SCRIPTS}" || exit
-	FCT_CHMOD u+s "$glroot/bin/cleanup"
-	rm -f "$glroot/sitebot/scripts/pzs-ng/ngBot.conf.dist"
+	FCT_CHMOD u+s "${glroot}/bin/cleanup"
+	rm -f "${glroot}/sitebot/scripts/pzs-ng/ngBot.conf.dist"
 }
 
-## idlebotkick
+## Tur-Space
 GL_SCRIPTS__Tur__Space () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Space "$cache")" = 1 ]]; then
 		ask="$(grep -w GL_SCRIPTS__Tur__Space "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -1006,25 +1004,25 @@ GL_SCRIPTS__Tur__Space () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Space= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Space=\"y\"" >> "$cache"
 			fi
-			echo -n "Installing Tur-Space, please wait..."
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Space}" "${PACKAGES_PATH}/Tur-Space"
-			cd "${PACKAGES_PATH}/Tur-Space" || exit
+			echo "Installing Tur-Space, please wait..."
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Space}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space"
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space" || exit
 			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
-			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new" "$glroot/bin/tur-space.conf"
-			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.sh" "$glroot/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new" "${glroot}/bin/tur-space.conf"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.sh" "${glroot}/bin"
 			printf '%s\n' \
 				'[TRIGGER]'                            \
 				"TRIGGER="${GL_Device}":25000:50000"   \
 				''                                     \
 				'[INCOMING]'                           \
 			>> "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Space/tur-space.conf.new"
-			echo "#*/5 * * * *		$glroot/bin/tur-space.sh go >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			touch "$glroot/ftp-data/logs/tur-space.log"
-			#FCT_INSTALL idlebotkick.sh "$glroot/bin"
-			#sed -i "s/changeme/"${GL_Port}"/g" "$glroot/bin/idlebotkick.sh"
-			#FCT_CHMOD 755 "$glroot/bin/idlebotkick.sh"
-			#FCT_INSTALL "idlebotkick.tcl" "$glroot/sitebot/scripts"
-			#echo "source scripts/idlebotkick.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			echo "#*/5 * * * *		${glroot}/bin/tur-space.sh go >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			touch "${glroot}/ftp-data/logs/tur-space.log"
+			#FCT_INSTALL idlebotkick.sh "${glroot}/bin"
+			#sed -i "s/changeme/"${GL_Port}"/g" "${glroot}/bin/idlebotkick.sh"
+			#FCT_CHMOD 755 "${glroot}/bin/idlebotkick.sh"
+			#FCT_INSTALL "idlebotkick.tcl" "${glroot}/sitebot/scripts"
+			#echo "source scripts/idlebotkick.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
@@ -1052,21 +1050,21 @@ GL_SCRIPTS__Tur__IdleBotKick () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__IdleBotKick= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__IdleBotKick=\"y\"" >> "$cache"
 			fi
-			echo -n "Installing Idlebotkick, please wait..."
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__IdleBotKick}" "${PACKAGES_PATH}/Tur-IdleBotKick"
-			cd "${PACKAGES_PATH}/Tur-IdleBotKick" || exit
-			FCT_INSTALL idlebotkick.sh "$glroot/bin"
-			sed -i "s/changeme/"${GL_Port}"/g" "$glroot/bin/idlebotkick.sh"
-			FCT_CHMOD 755 "$glroot/bin/idlebotkick.sh"
-			FCT_INSTALL "idlebotkick.tcl" "$glroot/sitebot/scripts"
-			echo "source scripts/idlebotkick.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			echo "Installing Idlebotkick, please wait..."
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__IdleBotKick}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-IdleBotKick"
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-IdleBotKick" || exit
+			FCT_INSTALL idlebotkick.sh "${glroot}/bin"
+			sed -i "s/changeme/"${GL_Port}"/g" "${glroot}/bin/idlebotkick.sh"
+			FCT_CHMOD 755 "${glroot}/bin/idlebotkick.sh"
+			FCT_INSTALL "idlebotkick.tcl" "${glroot}/sitebot/scripts"
+			echo "source scripts/idlebotkick.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
 }
 
-## Tur__ircadmin
+## Tur-IrcAdmin
 GL_SCRIPTS__Tur__IrcAdmin () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__IrcAdmin "$cache")" = 1 ]]; then
 		ask="$(grep -w GL_SCRIPTS__Tur__IrcAdmin "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -1089,25 +1087,25 @@ GL_SCRIPTS__Tur__IrcAdmin () {
 				echo "GL_SCRIPTS__Tur__IrcAdmin=\"y\"" >> "$cache"
 			fi
 			
-			echo -n "Installing Tur-IrcAdmin, please wait..."
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__IrcAdmin}" "${PACKAGES_PATH}/Tur-IrcAdmin"
+			echo "Installing Tur-IrcAdmin, please wait..."
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__IrcAdmin}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-IrcAdmin"
 			
-			cd "${PACKAGES_PATH}/Tur-IrcAdmin" || exit
-			FCT_INSTALL tur-ircadmin.sh "$glroot/bin"
-			FCT_CHMOD 755 "$glroot/bin/tur-ircadmin.sh"
-			FCT_INSTALL tur-ircadmin.tcl "$glroot/sitebot/scripts"
-			touch "$glroot/ftp-data/logs/tur-ircadmin.log"
-			FCT_CHMOD 666 "$glroot/ftp-data/logs/tur-ircadmin.log"
-			echo "source scripts/tur-ircadmin.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			sed -i "s/changeme/"$channelops"/" "$glroot/sitebot/scripts/tur-ircadmin.tcl"
-			sed -i "s/changeme/"${GL_Port}"/" "$glroot/bin/tur-ircadmin.sh"
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-IrcAdmin" || exit
+			FCT_INSTALL tur-ircadmin.sh "${glroot}/bin"
+			FCT_CHMOD 755 "${glroot}/bin/tur-ircadmin.sh"
+			FCT_INSTALL tur-ircadmin.tcl "${glroot}/sitebot/scripts"
+			touch "${glroot}/ftp-data/logs/tur-ircadmin.log"
+			FCT_CHMOD 666 "${glroot}/ftp-data/logs/tur-ircadmin.log"
+			echo "source scripts/tur-ircadmin.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			sed -i "s/changeme/"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}"/" "${glroot}/sitebot/scripts/tur-ircadmin.tcl"
+			sed -i "s/changeme/"${GL_Port}"/" "${glroot}/bin/tur-ircadmin.sh"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
 }
 
-## Tur__request
+## Tur-Request
 GL_SCRIPTS__Tur__Request () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Request "$cache")" = 1 ]]; then
 		ask="$(grep -w GL_SCRIPTS__Tur__Request "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -1129,29 +1127,29 @@ GL_SCRIPTS__Tur__Request () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Request= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Request=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Request}" "${PACKAGES_PATH}/Tur-Request"
-			echo -n "Installing Tur-Request, please wait..."
-			cd "${PACKAGES_PATH}/Tur-Request" || exit
-			FCT_INSTALL tur-request.sh "$glroot/bin"
-			FCT_CHMOD 755 "$glroot/bin/tur-request.sh"
-			FCT_INSTALL ./*.tcl "$glroot/sitebot/scripts"
-			FCT_INSTALL file_date "$glroot/bin"
-			sed -e "s/changeme/"${GL_SiteName}"/" tur-request.conf > "$glroot/bin/tur-request.conf"
-			touch "$glroot/site/_REQUESTS/.requests";
-			FCT_CHMOD 666 "$glroot/site/_REQUESTS/.requests"
-			echo "1 18 * * * 		$glroot/bin/tur-request.sh status auto >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			echo "1 0 * * * 		$glroot/bin/tur-request.sh checkold >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			touch "$glroot/ftp-data/logs/tur-request.log"
-			FCT_CHMOD 666 "$glroot/ftp-data/logs/tur-request.log"
-			echo "source scripts/tur-request.auth.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			cat gl >> "$glroot/etc/glftpd.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Request}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Request"
+			echo "Installing Tur-Request, please wait..."
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Request" || exit
+			FCT_INSTALL tur-request.sh "${glroot}/bin"
+			FCT_CHMOD 755 "${glroot}/bin/tur-request.sh"
+			FCT_INSTALL ./*.tcl "${glroot}/sitebot/scripts"
+			FCT_INSTALL file_date "${glroot}/bin"
+			sed -e "s/changeme/"${GL_SiteName}"/" tur-request.conf > "${glroot}/bin/tur-request.conf"
+			touch "${glroot}/site/_REQUESTS/.requests";
+			FCT_CHMOD 666 "${glroot}/site/_REQUESTS/.requests"
+			echo "1 18 * * * 		${glroot}/bin/tur-request.sh status auto >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			echo "1 0 * * * 		${glroot}/bin/tur-request.sh checkold >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			touch "${glroot}/ftp-data/logs/tur-request.log"
+			FCT_CHMOD 666 "${glroot}/ftp-data/logs/tur-request.log"
+			echo "source scripts/tur-request.auth.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			cat gl >> "${glroot}/etc/glftpd.conf"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
 }
 
-## Tur__trial
+## Tur-Trial3
 GL_SCRIPTS__Tur__Trial () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Trial "$cache")" = 1 ]]; then
 		ask=$(grep -w GL_SCRIPTS__Tur__Trial "$cache" | cut -d "=" -f2 | tr -d "\"")
@@ -1168,7 +1166,7 @@ GL_SCRIPTS__Tur__Trial () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Trial= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Trial=\"n\"" >> "$cache"
 			fi
-			#echo "0 0 * * * 		$glroot/bin/reset -d" >> /var/spool/cron/crontabs/root
+			#echo "0 0 * * * 		${glroot}/bin/reset -d" >> /var/spool/cron/crontabs/root
 		;;
 		[Yy]|*)
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Trial= "$cache")" = 0 ]; then
@@ -1182,26 +1180,26 @@ GL_SCRIPTS__Tur__Trial () {
 				echo "MySQL before you can use the script."
 				echo
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Trial3}" "${PACKAGES_PATH}/Tur-Trial3"
-			echo -n "Installing Tur-Trial3, please wait..."
-			cd "${PACKAGES_PATH}/Tur-Trial3" || exit 
-			FCT_INSTALL ./*.sh					"$glroot/bin"
-			FCT_INSTALL tur-trial3.conf.conf	"$glroot/bin"
-			FCT_INSTALL tur-trial3.theme		"$glroot/bin"
-			FCT_INSTALL tur-trial3.tcl			"$glroot/sitebot/scripts"
-			echo "source scripts/tur-trial3.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			echo "*/31 * * * * 		$glroot/bin/tur-trial3.sh update >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			echo "*/30 * * * * 		$glroot/bin/tur-trial3.sh tcron >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			echo "45 23 * * * 		$glroot/bin/tur-trial3.sh qcron >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			echo "0 0 * * * 		$glroot/bin/midnight.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Trial3}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Trial3"
+			echo "Installing Tur-Trial3, please wait..."
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Trial3" || exit 
+			FCT_INSTALL ./*.sh					"${glroot}/bin"
+			FCT_INSTALL tur-trial3.conf.conf	"${glroot}/bin"
+			FCT_INSTALL tur-trial3.theme		"${glroot}/bin"
+			FCT_INSTALL tur-trial3.tcl			"${glroot}/sitebot/scripts"
+			echo "source scripts/tur-trial3.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			echo "*/31 * * * * 		${glroot}/bin/tur-trial3.sh update >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			echo "*/30 * * * * 		${glroot}/bin/tur-trial3.sh tcron >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			echo "45 23 * * * 		${glroot}/bin/tur-trial3.sh qcron >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			echo "0 0 * * * 		${glroot}/bin/midnight.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
 			
 			if [ -f "$(which mysql)" ]; then
-				FCT_INSTALL "$(which mysql)" "$glroot/bin"
+				FCT_INSTALL "$(which mysql)" "${glroot}/bin"
 			fi
 			
-			cat gl >> "$glroot/etc/glftpd.conf"
+			cat gl >> "${glroot}/etc/glftpd.conf"
 			cd ..
-			touch "$glroot/ftp-data/logs/tur-trial3.log"
+			touch "${glroot}/ftp-data/logs/tur-trial3.log"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1229,20 +1227,20 @@ GL_SCRIPTS__Tur__Vacation () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Vacation= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Vacation=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Trial3}" "${PACKAGES_PATH}/Tur-Vacation"
-			echo -n "Installing Tur-Vacation, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-Vacation/tur-vacation.sh" "$glroot/bin"
-			touch "$glroot/etc/vacation.index";
-			FCT_CHMOD 666 "$glroot/etc/vacation.index"
-			touch "$glroot/etc/quota_vacation.db";
-			FCT_CHMOD 666 "$glroot/etc/quota_vacation.db"
-			cat"${PACKAGES_PATH}/Tur-Vacation/gl" >> "$glroot/etc/glftpd.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Trial3}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Vacation"
+			echo "Installing Tur-Vacation, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Vacation/tur-vacation.sh" "${glroot}/bin"
+			touch "${glroot}/etc/vacation.index";
+			FCT_CHMOD 666 "${glroot}/etc/vacation.index"
+			touch "${glroot}/etc/quota_vacation.db";
+			FCT_CHMOD 666 "${glroot}/etc/quota_vacation.db"
+			cat"${PACKAGES_PATH_GL_SCRIPTS}/Tur-Vacation/gl" >> "${glroot}/etc/glftpd.conf"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
 }
 
-## whereami
+## Tur-WhereAmi
 GL_SCRIPTS__Tur__WhereAmi () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__WhereAmi "$cache")" = 1 ]]; then
 		ask="$(grep -w GL_SCRIPTS__Tur__WhereAmi "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -1251,7 +1249,7 @@ GL_SCRIPTS__Tur__WhereAmi () {
 		echo -e "\e[4mDescription for Tur-WhereAmi:\e[0m"
 		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__WhereAmi}"
 		echo
-		echo -n "Install Whereami ? [Y]es [N]o, default Y : " ; read -r ask
+		echo -n "Install Tur-WhereAmi ? [Y]es [N]o, default Y : " ; read -r ask
 	fi
 	
 	case "$ask" in
@@ -1264,12 +1262,13 @@ GL_SCRIPTS__Tur__WhereAmi () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__WhereAmi= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__WhereAmi=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__WhereAmi}" "${PACKAGES_PATH}/Tur-WhereAmi"
-			echo -n "Installing Tur-WhereAmi, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-WhereAmi/whereami.sh" "$glroot/bin"
-			FCT_CHMOD 755 "$glroot/bin/whereami.sh"
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-WhereAmi/whereami.tcl" "$glroot/sitebot/scripts"
-			echo "source scripts/whereami.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__WhereAmi}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-WhereAmi"
+			echo "Installing Tur-WhereAmi, please wait..."
+			
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-WhereAmi/whereami.sh" "${glroot}/bin"
+			FCT_CHMOD 755 "${glroot}/bin/whereami.sh"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-WhereAmi/whereami.tcl" "${glroot}/sitebot/scripts"
+			echo "source scripts/whereami.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1298,19 +1297,48 @@ GL_SCRIPTS__Tur__Undupe () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Undupe= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Undupe=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Undupe}" "${PACKAGES_PATH}/Tur-Undupe"
-			echo -n "Installing Tur-Undupe, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-Undupe/tur-undupe.sh" "$glroot/bin"
-			FCT_CHMOD 755 "$glroot/bin/tur-undupe.sh"
-			FCT_CHMOD 6755 "$glroot/bin/undupe"
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-Undupe/tur-undupe.tcl" "$glroot/sitebot/scripts"
-			echo "source scripts/tur-undupe.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Undupe}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Undupe"
+			echo "Installing Tur-Undupe, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Undupe/tur-undupe.sh" "${glroot}/bin"
+			FCT_CHMOD 755 "${glroot}/bin/tur-undupe.sh"
+			FCT_CHMOD 6755 "${glroot}/bin/undupe"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Undupe/tur-undupe.tcl" "${glroot}/sitebot/scripts"
+			echo "source scripts/tur-undupe.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
 }
 
-## Tur__PreCheck
+## Tur-FTPWho
+GL_SCRIPTS__Tur__FTPWho () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__FTPWho "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__FTPWho "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-FTPWho:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__FTPWho}"
+		echo
+		echo -n "Install Tur-FTPWho ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__FTPWho= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__FTPWho=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__FTPWho= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__FTPWho=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__FTPWho}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-FTPWho"
+			${BINARY_GCC} -O2 "${PACKAGES_PATH_GL_SCRIPTS}/Tur-FTPWho/tur-ftpwho.c" -o "${glroot}/bin/tur-ftpwho"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+## Tur-PreCheck
 GL_SCRIPTS__Tur__PreCheck () {
 	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__PreCheck "$cache")" = 1 ]]; then
 		ask="$(grep -w GL_SCRIPTS__Tur__PreCheck "$cache" | cut -d "=" -f2 | tr -d "\"")"
@@ -1319,7 +1347,7 @@ GL_SCRIPTS__Tur__PreCheck () {
 		echo -e "\e[4mDescription for Tur-PreCheck:\e[0m"
 		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__PreCheck}"
 		echo
-		echo -n "Install Precheck ? [Y]es [N]o, default Y : " ; read -r ask
+		echo -n "Install Tur-PreCheck ? [Y]es [N]o, default Y : " ; read -r ask
 	fi
 	
 	case "$ask" in
@@ -1332,13 +1360,143 @@ GL_SCRIPTS__Tur__PreCheck () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__PreCheck= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__PreCheck=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__PreCheck}" "${PACKAGES_PATH}/Tur-PreCheck"
-			echo -n "Installing Tur-PreCheck, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-PreCheck/precheck*.sh" "$glroot/bin"
-			FCT_CHMOD +x "$glroot/bin/precheck*.sh"
-			FCT_INSTALL "${PACKAGES_PATH}/Tur-PreCheck/precheck.tcl" "$glroot/sitebot/scripts"
-			echo "source scripts/precheck.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			touch "$glroot/ftp-data/logs/precheck.log"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__PreCheck}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreCheck"
+			echo "Installing Tur-PreCheck, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreCheck/precheck*.sh" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreCheck/tur-precheck.sh" "${glroot}/bin"
+			FCT_CHMOD +x "${glroot}/bin/precheck*.sh"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreCheck/precheck.tcl" "${glroot}/sitebot/scripts"
+			echo "source scripts/precheck.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			touch "${glroot}/ftp-data/logs/precheck.log"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+## Tur-PreDirCheck
+GL_SCRIPTS__Tur__PreDirCheck () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__PreDirCheck "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-PreDirCheck:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__PreDirCheck}"
+		echo
+		echo -n "Install Tur-PreDirCheck ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__PreDirCheck=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__PreDirCheck=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__PreDirCheck}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck"
+			echo "Installing Tur-PreDirCheck, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck/tur-predircheck.sh" "${glroot}/bin"
+			${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck/glftpd2/dirloglist_gl.c" -o "${glroot}/bin/dirloglist_gl"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+## Tur-Free
+GL_SCRIPTS__Tur__Free () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Free "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__Free "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-Free:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__Free}"
+		echo
+		echo -n "Install Tur-Free ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Free= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Free=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Free= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Free=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Free}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Free"
+			echo "Installing Tur-Free, please wait..."
+			sed -i "s/changeme/"${GL_SiteName}"/" "${glroot}/bin/tur-free.sh"
+			sed -i '/^SECTIONS/a '"TOTAL:"${GL_Device}"" "${glroot}/bin/tur-free.sh"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Free/*.tcl" "${glroot}/sitebot/scripts"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Free/tur-free.sh" "${glroot}/bin"
+			echo "source scripts/tur-free.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+## Tur-PreDirCheck
+GL_SCRIPTS__Tur__PreDirCheck_Manager () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck_Manager "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__PreDirCheck_Manager "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-PreDirCheck:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__PreDirCheck_Manager}"
+		echo
+		echo -n "Install Tur-PreDirCheck_Manager ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck_Manager= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__PreDirCheck_Manager=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__PreDirCheck_Manager= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__PreDirCheck_Manager=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__PreDirCheck_Manager}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck_Manager"
+			echo "Installing Tur-PreDirCheck_Manager, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck_Manager/tur-predircheck_manager.tcl" "${glroot}/sitebot/scripts"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-PreDirCheck_Manager/tur-predircheck_manager.sh" "${glroot}/bin"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+## Tur-Rules
+GL_SCRIPTS__Tur__Rules () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Rules "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__Rules "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-PreDirCheck:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__Rules}"
+		echo
+		echo -n "Install Tur-PreDirCheck_Manager ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Rules= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Rules=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Rules= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Rules=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Rules}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules"
+			echo "Installing Tur-Rules, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules/tur-rules.sh" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules/*.tcl" "${glroot}/sitebot/scripts"
+			"${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules/rulesgen.sh" MISC
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules/tur-rules.sh.org" "${PACKAGES_PATH_GL_SCRIPTS}/tur-rules/tur-rules.sh"
+			"${PACKAGES_PATH_GL_SCRIPTS}/Tur-Rules/rulesgen.sh" GENERAL
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1366,12 +1524,13 @@ GL_SCRIPTS__Tur__AutoNuke () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__AutoNuke= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__AutoNuke=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__AutoNuke}" "${PACKAGES_PATH}/Tur-AutoNuke"
-			echo -n "Installing Tur-AutoNuke, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/tur-autonuke.conf" "$glroot/bin"
-			FCT_INSTALL "${PACKAGES_PATH}/tur-autonuke.sh" "$glroot/bin"
-			echo "*/10 * * * *		$glroot/bin/tur-autonuke.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-			touch "$glroot/ftp-data/logs/tur-autonuke.log"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__AutoNuke}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AutoNuke"
+			echo "Installing Tur-AutoNuke, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AutoNuke/tur-autonuke.conf" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AutoNuke/tur-autonuke.sh" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AutoNuke/tur-autonuke.conf.org" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AutoNuke/tur-autonuke.conf"
+			echo "*/10 * * * *		${glroot}/bin/tur-autonuke.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+			touch "${glroot}/ftp-data/logs/tur-autonuke.log"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1398,16 +1557,16 @@ GL_SCRIPTS__Tur__AddIp () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__AddIp= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__AddIp=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__AddIp}" "${PACKAGES_PATH}/Tur-AddIp"
-			echo -n "Installing Tur-AddIp, please wait..."
-			cd "${PACKAGES_PATH}/Tur-AddIp" || exit
-			FCT_INSTALL ./*.tcl "$glroot/sitebot/scripts"
-			FCT_INSTALL ./*.sh "$glroot/bin"
-			echo "source scripts/tur-addip.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			touch "$glroot/ftp-data/logs/tur-addip.log"
-			FCT_CHMOD 666 "$glroot/ftp-data/logs/tur-addip.log"
-			sed -i "s/changeme/"${GL_Port}"/" "$glroot/bin/tur-addip.sh"
-			sed -i "s/changeme/"$channelops"/" "$glroot/sitebot/scripts/tur-addip.tcl"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__AddIp}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AddIp"
+			echo "Installing Tur-AddIp, please wait..."
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/Tur-AddIp" || exit
+			FCT_INSTALL ./*.tcl "${glroot}/sitebot/scripts"
+			FCT_INSTALL ./*.sh "${glroot}/bin"
+			echo "source scripts/tur-addip.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			touch "${glroot}/ftp-data/logs/tur-addip.log"
+			FCT_CHMOD 666 "${glroot}/ftp-data/logs/tur-addip.log"
+			sed -i "s/changeme/"${GL_Port}"/" "${glroot}/bin/tur-addip.sh"
+			sed -i "s/changeme/"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}"/" "${glroot}/sitebot/scripts/tur-addip.tcl"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
@@ -1436,12 +1595,12 @@ GL_SCRIPTS__Tur__Oneline_Stats () {
 			if [ "$(grep -c -w GL_SCRIPTS__Tur__Oneline_Stats= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Tur__Oneline_Stats=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Oneline_Stats}" "${PACKAGES_PATH}/Tur-Oneline_Stats"
-			echo -n "Installing Tur-Oneline_Stats, please wait..."
-			cd Tur-"${PACKAGES_PATH}/Tur-Oneline_Stats" || exit
-			FCT_INSTALL ./*.tcl "$glroot/sitebot/scripts"
-			FCT_INSTALL ./*.sh "$glroot/bin"
-			echo "source scripts/tur-oneline_stats.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Oneline_Stats}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Oneline_Stats"
+			echo "Installing Tur-Oneline_Stats, please wait..."
+			cd Tur-"${PACKAGES_PATH_GL_SCRIPTS}/Tur-Oneline_Stats" || exit
+			FCT_INSTALL ./*.tcl "${glroot}/sitebot/scripts"
+			FCT_INSTALL ./*.sh "${glroot}/bin"
+			echo "source scripts/tur-oneline_stats.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			cd ..
 			echo -e "[\e[32mDone\e[0m]"
 		;;
@@ -1472,8 +1631,8 @@ GL_SCRIPTS__PSXC_IMDB () {
 			fi
 			
 			
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__PSXC__IMDB}" "${PACKAGES_PATH}/PSXC-IMDB"
-			echo -n "Installing PSXC_IMDB, please wait..."
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__PSXC__IMDB}" "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB"
+			echo "Installing PSXC_IMDB, please wait..."
 			if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__PSXC_IMDBchan "$cache")" = 1 ]]; then
 				imdbchan="$(grep -w GL_SCRIPTS__PSXC_IMDBchan "$cache" | cut -d "=" -f2 | tr -d "\"")"
 			else
@@ -1482,27 +1641,27 @@ GL_SCRIPTS__PSXC_IMDB () {
 				done
 			fi
 			cd PSXC_IMDB || exit
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/extras/*" "$glroot/bin"
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/addons/*" "$glroot/bin"
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/main/PSXC_IMDB.sh" "$glroot/bin"
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/main/PSXC_IMDB.conf" "$glroot/etc"
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/main/PSXC_IMDB.tcl" "$glroot/sitebot/scripts/pzs-ng/plugins"
-			FCT_INSTALL "${PACKAGES_PATH}/PSXC-IMDB/main/PSXC_IMDB.zpt" "$glroot/sitebot/scripts/pzs-ng/plugins"
-			"$glroot/bin/PSXC_IMDB-sanity.sh" >/dev/null 2>&1
-			touch "$glroot/ftp-data/logs/psxc-moviedata.log"
-			FCT_CHMOD 666 "$glroot/ftp-data/logs/psxc-moviedata.log"
-			echo "source scripts/pzs-ng/plugins/PSXC_IMDB.tcl" >> "$glroot/sitebot/eggdrop.conf"
-			cat gl >> "$glroot/etc/glftpd.conf"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/extras/*" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/addons/*" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/main/PSXC_IMDB.sh" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/main/PSXC_IMDB.conf" "${glroot}/etc"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/main/PSXC_IMDB.tcl" "${glroot}/sitebot/scripts/pzs-ng/plugins"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/PSXC-IMDB/main/PSXC_IMDB.zpt" "${glroot}/sitebot/scripts/pzs-ng/plugins"
+			"${glroot}/bin/PSXC_IMDB-sanity.sh" >/dev/null 2>&1
+			touch "${glroot}/ftp-data/logs/psxc-moviedata.log"
+			FCT_CHMOD 666 "${glroot}/ftp-data/logs/psxc-moviedata.log"
+			echo "source scripts/pzs-ng/plugins/PSXC_IMDB.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+			cat gl >> "${glroot}/etc/glftpd.conf"
 			echo -e "[\e[32mDone\e[0m]"
-			CHECK="$(grep -w ".imdb" "$glroot/etc/glftpd.conf")"
+			CHECK="$(grep -w ".imdb" "${glroot}/etc/glftpd.conf")"
 			
 			if [ "$CHECK" = "" ]; then
-				sed -e "s/show_diz .message/show_diz .message .imdb/" "$glroot/etc/glftpd.conf" > "$glroot/etc/glftpd.conf"
-				touch "$glroot/ftp-data/logs/psxc-moviedata.log";
-				FCT_CHMOD 666 "$glroot/ftp-data/logs/psxc-moviedata.log";
+				sed -e "s/show_diz .message/show_diz .message .imdb/" "${glroot}/etc/glftpd.conf" > "${glroot}/etc/glftpd.conf"
+				touch "${glroot}/ftp-data/logs/psxc-moviedata.log";
+				FCT_CHMOD 666 "${glroot}/ftp-data/logs/psxc-moviedata.log";
 			fi
 			
-			sed -i "s/#changethis/"$imdbchan"/" "$glroot/sitebot/scripts/pzs-ng/plugins/PSXC_IMDB.tcl"
+			sed -i "s/#changethis/"$imdbchan"/" "${glroot}/sitebot/scripts/pzs-ng/plugins/PSXC_IMDB.tcl"
 			cd ..
 			
 			if [ "$(grep -c -w GL_SCRIPTS__PSXC_IMDBchan= "$cache")" = 0 ]; then
@@ -1536,51 +1695,51 @@ GL_SCRIPTS__eur0_pre_system () {
 				echo "GL_SCRIPTS__eur0_pre_system=\"y\"" >> "$cache"
 			fi
 			
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__EUR0_PRE_SYSTEM}" "${PACKAGES_PATH}/eur0-pre-system"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__EUR0_PRE_SYSTEM}" "${PACKAGES_PATH_GL_SCRIPTS}/eur0-pre-system"
 			
-			echo -n "Installing Eur0-pre-system, please wait..."
-			cd "${PACKAGES_PATH}/eur0-pre-system" || exit
+			echo "Installing Eur0-pre-system, please wait..."
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/eur0-pre-system" || exit
 			FCT_EXEC_SHOW_ERROR make;
 			FCT_EXEC_SHOW_ERROR make install;
 			FCT_EXEC_SHOW_ERROR make clean;
-			FCT_INSTALL ./*.sh "$glroot/bin"
-			FCT_INSTALL ./*.tcl "$glroot/sitebot/scripts"
-			echo "source scripts/affils.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_INSTALL ./*.sh "${glroot}/bin"
+			FCT_INSTALL ./*.tcl "${glroot}/sitebot/scripts"
+			echo "source scripts/affils.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			bins="bc du expr echo sed touch chmod pwd grep basename date mv bash find sort"
 			
 			for file in $bins; do
-				FCT_INSTALL "$(which "$file")" "$glroot/bin"
+				FCT_INSTALL "$(which "$file")" "${glroot}/bin"
 			done
 			
-			cat gl >> "$glroot/etc/glftpd.conf"
+			cat gl >> "${glroot}/etc/glftpd.conf"
 		
 			if [ -d Foo-Tools ]; then
 				rm -rf Foo-Tools >/dev/null 2>&1
 			fi
-		echo -n "Installing Foo-Tools, please wait..."
+		echo "Installing Foo-Tools, please wait..."
 			FCT_GIT_GET "${GIT_URL__FOO_TOOLS}" "${PACKAGES_PATH_DOWNLOADS}/"${GL_SiteName}"/Foo-Tools"
-			FCT_INSTALL "${PACKAGES_PATH_DATA}/pre.cfg" "$glroot/etc"
+			FCT_INSTALL "${PACKAGES_PATH_DATA}/pre.cfg" "${glroot}/etc"
 			cd "${PACKAGES_PATH_DOWNLOADS}/"${GL_SiteName}"/Foo-Tools" || exit
 			git checkout cdb77c1 >/dev/null 2>&1
 			cd src || exit
 			FCT_EXEC_SHOW_ERROR ./configure 
 			FCT_EXEC_SHOW_ERROR make build
-			FCT_INSTALL pre/foo-pre "$glroot/bin"
-			FCT_CHMOD u+s "$glroot/bin/foo-pre"
+			FCT_INSTALL pre/foo-pre "${glroot}/bin"
+			FCT_CHMOD u+s "${glroot}/bin/foo-pre"
 			FCT_EXEC_SHOW_ERROR make -s distclean
 			echo -e "[\e[32mDone\e[0m]"
 			cd ../../
 			sections="$(sed "s/REQUEST//g" "${rootdir}/.tmp/.validsections" | sed "s/ /|/g" | sed "s/|$//g")"
-			cat "${rootdir}/.tmp/footools" >> "$glroot/etc/pre.cfg"
+			cat "${rootdir}/.tmp/footools" >> "${glroot}/etc/pre.cfg"
 			rm -f "${rootdir}/.tmp/footools"
-			sed -i '/# group.dir/a group.SiteOP.dir=/site/_PRE/SiteOP' "$glroot/etc/pre.cfg"
-			sed -i '/# group.allow/a group.SiteOP.allow='"$sections" "$glroot/etc/pre.cfg"
-			sed -i "s/allow=/allow="$sections"/" "$glroot/bin/addaffil.sh"
-			touch "$glroot/ftp-data/logs/foo-pre.log"
-			mknod "$glroot/dev/full" c 1 7
-			FCT_CHMOD 666 "$glroot/dev/full"
-			mknod "$glroot/dev/urandom" c 1 9
-			FCT_CHMOD 666 "$glroot/dev/urandom"
+			sed -i '/# group.dir/a group.SiteOP.dir=/site/_PRE/SiteOP' "${glroot}/etc/pre.cfg"
+			sed -i '/# group.allow/a group.SiteOP.allow='"$sections" "${glroot}/etc/pre.cfg"
+			sed -i "s/allow=/allow="$sections"/" "${glroot}/bin/addaffil.sh"
+			touch "${glroot}/ftp-data/logs/foo-pre.log"
+			mknod "${glroot}/dev/full" c 1 7
+			FCT_CHMOD 666 "${glroot}/dev/full"
+			mknod "${glroot}/dev/urandom" c 1 9
+			FCT_CHMOD 666 "${glroot}/dev/urandom"
 			cd ..
 		;;
 	esac
@@ -1608,12 +1767,12 @@ GL_SCRIPTS__slv__prebw () {
 			if [ "$(grep -c -w GL_SCRIPTS__slv__prebw= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__slv__prebw=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__SLV_PREBW}" "${PACKAGES_PATH}/slv-prebw"
-			cd "${PACKAGES_PATH}/slv-prebw" || exit 
-			echo -n "Installing SLV-PreBW, please wait..."
-			FCT_INSTALL ./*.sh "$glroot/bin"
-			FCT_INSTALL ./*.tcl "$glroot/sitebot/scripts/pzs-ng/plugins"
-			echo "source scripts/pzs-ng/plugins/PreBW.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__SLV_PREBW}" "${PACKAGES_PATH_GL_SCRIPTS}/slv-prebw"
+			cd "${PACKAGES_PATH_GL_SCRIPTS}/slv-prebw" || exit 
+			echo "Installing SLV-PreBW, please wait..."
+			FCT_INSTALL ./*.sh "${glroot}/bin"
+			FCT_INSTALL ./*.tcl "${glroot}/sitebot/scripts/pzs-ng/plugins"
+			echo "source scripts/pzs-ng/plugins/PreBW.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1641,12 +1800,12 @@ GL_SCRIPTS__Teqno__IRCNick () {
 			if [ "$(grep -c -w GL_SCRIPTS__Teqno__IRCNick= "$cache")" = 0 ]; then
 				echo "GL_SCRIPTS__Teqno__IRCNick=\"y\"" >> "$cache"
 			fi
-			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Teqno__IRCNick}" "${PACKAGES_PATH}/Teqno-IRCNick"
-			echo -n "Installing Teqno-IRCNick, please wait..."
-			FCT_INSTALL "${PACKAGES_PATH}/ircnick/*.sh" "$glroot/bin"
-			FCT_INSTALL "${PACKAGES_PATH}/ircnick/*.tcl" "$glroot/sitebot/scripts"
-			sed -i "s/changeme/"$channelops"/" "$glroot/sitebot/scripts/ircnick.tcl"
-			echo "source scripts/ircnick.tcl" >> "$glroot/sitebot/eggdrop.conf"
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Teqno__IRCNick}" "${PACKAGES_PATH_GL_SCRIPTS}/Teqno-IRCNick"
+			echo "Installing Teqno-IRCNick, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/ircnick/*.sh" "${glroot}/bin"
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/ircnick/*.tcl" "${glroot}/sitebot/scripts"
+			sed -i "s/changeme/"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}"/" "${glroot}/sitebot/scripts/ircnick.tcl"
+			echo "source scripts/ircnick.tcl" >> "${glroot}/sitebot/eggdrop.conf"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1730,66 +1889,68 @@ GLFTPD_FTP_CREATATION_USER () {
 	echo
 	echo "["$username"] created successfully and added to the groups Admin and SiteOP"
 	echo "These groups were also created: NUKERS, iND, VACATION & Friends"
-	sed -i "s/\"changeme\"/\"$username\"/" "$glroot/sitebot/eggdrop.conf"
-	sed -i "s/\"sname\"/\"${GL_SiteName}\"/" "$glroot/sitebot/scripts/pzs-ng/ngBot.conf"
-	sed -i "s/\"ochan\"/\"$channelops\"/" "$glroot/sitebot/scripts/pzs-ng/ngBot.conf"
-	sed -i "s/\"channame\"/\"$announcechannels\"/" "$glroot/sitebot/scripts/pzs-ng/ngBot.conf"
+	sed -i "s/\"changeme\"/\"$username\"/" "${glroot}/sitebot/eggdrop.conf"
+	sed -i "s/\"sname\"/\"${GL_SiteName}\"/" "${glroot}/sitebot/scripts/pzs-ng/ngBot.conf"
+	sed -i "s/\"ochan\"/\"${EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN}\"/" "${glroot}/sitebot/scripts/pzs-ng/ngBot.conf"
+	sed -i "s/\"channame\"/\"${EGGDROP_CONF_ANNOUNCE_CHANNELS}\"/" "${glroot}/sitebot/scripts/pzs-ng/ngBot.conf"
 	
 	if [ "$(grep -c -w username= "$cache")" = 0 ]; then
-			printf '%s\n' \
-						"username=\"$username\""        \
-						"password=\"$password\""        \
-						"ip=\"$ip\""                    \
-				>> "$cache"
+		printf '%s\n' \
+				"username=\"$username\""        \
+				"password=\"$password\""        \
+				"ip=\"$ip\""                    \
+		>> "$cache"
 
 	fi
 }
 
-## CleanUp / Config
-cleanup () {
+## GL_UNINSTALL / Config
+GL_UNINSTALL () {
 	cd ../../
-	FCT_CreateDir "$glroot/backup"
+	# FCT_CreateDir "${glroot}/backup"
+	mkdir -p "${glroot}/backup"
 	FCT_INSTALL "${PACKAGES_PATH}/"${GL_ARCHIVE_FILE}"DIR" "${PACKAGES_PATH}/source/"
 	FCT_INSTALL "${PACKAGES_PATH}/pzs-ng" "${PACKAGES_PATH}/source/"
 	FCT_INSTALL "${PACKAGES_PATH}/eggdrop" "${PACKAGES_PATH}/source/"
 	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/eur0-pre-system/Foo-Tools" "${PACKAGES_PATH}/source/"
-	FCT_INSTALL "${rootdir}/.tmp/site/*" "$glroot/site/"
-	FCT_INSTALL "${PACKAGES_PATH}/source/pzs-ng" "$glroot/backup"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/pzs-ng-update.sh" "$glroot/backup"
-	FCT_INSTALL "$glroot/backup/pzs-ng/sitebot/extra/invite.sh" "$glroot/bin"
-	FCT_INSTALL "${PACKAGES_PATH_DATA}/syscheck.sh" "$glroot/bin"
-	FCT_INSTALL "${rootdir}/.tmp/dated.sh" "$glroot/bin"
+	FCT_INSTALL "${rootdir}/.tmp/site/*" "${glroot}/site/"
+	FCT_INSTALL "${PACKAGES_PATH}/source/pzs-ng" "${glroot}/backup"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/pzs-ng-update.sh" "${glroot}/backup"
+	FCT_INSTALL "${glroot}/backup/pzs-ng/sitebot/extra/invite.sh" "${glroot}/bin"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/syscheck.sh" "${glroot}/bin"
+	FCT_INSTALL "${rootdir}/.tmp/dated.sh" "${glroot}/bin"
 	local DIRDATED=0
-	[ -d "$glroot/site/0DAY" ] && sed -i '/^sections/a '"0DAY" "$glroot/bin/dated.sh" && DIRDATED=1
-	[ -d "$glroot/site/FLAC" ] && sed -i '/^sections/a '"FLAC" "$glroot/bin/dated.sh" && DIRDATED=1
-	[ -d "$glroot/site/MP3" ] && sed -i '/^sections/a '"MP3" "$glroot/bin/dated.sh" && DIRDATED=1
-	[ -d "$glroot/site/EBOOKS" ] && sed -i '/^sections/a '"EBOOKS" "$glroot/bin/dated.sh" && DIRDATED=1
+	[ -d "${glroot}/site/0DAY" ] && sed -i '/^sections/a '"0DAY" "${glroot}/bin/dated.sh" && DIRDATED=1
+	[ -d "${glroot}/site/FLAC" ] && sed -i '/^sections/a '"FLAC" "${glroot}/bin/dated.sh" && DIRDATED=1
+	[ -d "${glroot}/site/MP3" ] && sed -i '/^sections/a '"MP3" "${glroot}/bin/dated.sh" && DIRDATED=1
+	[ -d "${glroot}/site/EBOOKS" ] && sed -i '/^sections/a '"EBOOKS" "${glroot}/bin/dated.sh" && DIRDATED=1
 
 	if [[ "$DIRDATED" == 1 ]]; then
-		echo "0 0 * * *         	$glroot/bin/dated.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-		echo "0 1 * * *         	$glroot/bin/dated.sh close >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-		"$glroot/bin/dated.sh" >/dev/null 2>&1
+		echo "0 0 * * *         	${glroot}/bin/dated.sh >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+		echo "0 1 * * *         	${glroot}/bin/dated.sh close >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
+		"${glroot}/bin/dated.sh" >/dev/null 2>&1
 	fi
 		local DIRTV=0
-		[ -d "$glroot/site/TV-HD" ] && sed -i '/^sections/a '"0DAY" "$glroot/bin/dated.sh" && DIRTV=1
-	[ -d "$glroot/site/TV-NL" ] && sed -i '/^sections/a '"FLAC" "$glroot/bin/dated.sh" && DIRTV=1
-	[ -d "$glroot/site/TV-SD" ] && sed -i '/^sections/a '"MP3" "$glroot/bin/dated.sh" && DIRTV=1
-	[ -d "$glroot/site/EBOOKS" ] && sed -i '/^sections/a '"EBOOKS" "$glroot/bin/dated.sh" && DIRTV=1
+		[ -d "${glroot}/site/TV-HD" ] && sed -i '/^sections/a '"0DAY" "${glroot}/bin/dated.sh" && DIRTV=1
+	[ -d "${glroot}/site/TV-NL" ] && sed -i '/^sections/a '"FLAC" "${glroot}/bin/dated.sh" && DIRTV=1
+	[ -d "${glroot}/site/TV-SD" ] && sed -i '/^sections/a '"MP3" "${glroot}/bin/dated.sh" && DIRTV=1
+	[ -d "${glroot}/site/EBOOKS" ] && sed -i '/^sections/a '"EBOOKS" "${glroot}/bin/dated.sh" && DIRTV=1
 	if [[ "$DIRTV" == 1 ]]; then
-		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze.tcl" "$glroot/sitebot/scripts/pzs-ng/plugins"
-		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze.zpt" "$glroot/sitebot/scripts/pzs-ng/plugins"
-		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze_nuke.sh" "$glroot/bin"
-		echo "source scripts/pzs-ng/plugins/TVMaze.tcl" >> "$glroot/sitebot/eggdrop.conf"
-		touch "$glroot/ftp-data/logs/tvmaze_nuke.log"
+		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze.tcl" "${glroot}/sitebot/scripts/pzs-ng/plugins"
+		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze.zpt" "${glroot}/sitebot/scripts/pzs-ng/plugins"
+		FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/TVMaze_nuke.sh" "${glroot}/bin"
+		echo "source scripts/pzs-ng/plugins/TVMaze.tcl" >> "${glroot}/sitebot/eggdrop.conf"
+		touch "${glroot}/ftp-data/logs/tvmaze_nuke.log"
 	fi
 
 
-	FCT_CreateDir "$glroot/tmp"
-	FCT_CHMOD 777 "$glroot/tmp"
-	chown -R "${UNIX_USER_EGGDROP}:glftpd" "$glroot/sitebot"
-	FCT_CHMOD 755 "$glroot/bin/*.sh"
-	FCT_CHMOD 777 "$glroot/ftp-data/logs"
-	FCT_CHMOD 666 "$glroot/ftp-data/logs/*"
+	# FCT_CreateDir "${glroot}/tmp"
+	mkdir -p "${glroot}/tmp"
+	FCT_CHMOD 777 "${glroot}/tmp"
+	chown -R "${UNIX_USER_EGGDROP}:glftpd" "${glroot}/sitebot"
+	FCT_CHMOD 755 "${glroot}/bin/*.sh"
+	FCT_CHMOD 777 "${glroot}/ftp-data/logs"
+	FCT_CHMOD 666 "${glroot}/ftp-data/logs/*"
 	rm -rf .tmp >/dev/null 2>&1
 	
 }
@@ -1848,16 +2009,16 @@ FCT_EXEC_SHOW_ERROR () {
 }
 BASH_END () {
 	echo 
-	if [ -f "$glroot/bin/tur-trial3.sh" ]; then
-			echo "You have chosen to install Tur__Trial3, please run "$glroot/bin/setupsql.sh""
+	if [ -f "${glroot}/bin/tur-trial3.sh" ]; then
+			echo "You have chosen to install Tur__Trial3, please run "${glroot}/bin/setupsql.sh""
 			echo
 	fi
-	echo "If you are planning to uninstall glFTPD, then run cleanup.sh"
+	echo "If you are planning to uninstall glFTPD, then run uninstall-"${GL_SiteName}".sh"
 	echo
 	echo "To get the bot running you HAVE to do this ONCE to create the initial userfile"
-	echo "su - sitebot -c \"$glroot/sitebot/sitebot -m\""
+	echo "su - sitebot -c \"${glroot}/sitebot/sitebot -m\""
 	echo
-	echo "If you want automatic cleanup of site then please review the settings in "$glroot/bin/tur-space.conf" and enable the line in crontab"
+	echo "If you want automatic uninstall of site then please review the settings in "${glroot}/bin/tur-space.conf" and enable the line in crontab"
 	echo 
 	echo "All good to go and I recommend people to check the different settings for the different scripts including glFTPD itself."
 	echo
@@ -1865,90 +2026,103 @@ BASH_END () {
 	echo 
 	echo "Installer script created by Teqno" 
 }
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_ROOT' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_ROOT' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 BASH_CHECK_ROOT
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_INSTALLER_DISCLAIMER' && read -p 'Press Enter to continue...'; fi
-GLFTPD_INSTALLER_DISCLAIMER
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_IF_DEBIAN_INSTALL_DEPENDANCIES' && read -p 'Press Enter to continue...'; fi
-BASH_CHECK_IF_DEBIAN_INSTALL_DEPENDANCIES
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_IF_BINARY_EXISTS' && read -p 'Press Enter to continue...'; fi
-BASH_CHECK_IF_BINARY_EXISTS
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_INIT' && read -p 'Press Enter to continue...'; fi
+#if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_INSTALLER_DISCLAIMER' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+#GLFTPD_INSTALLER_DISCLAIMER
+#if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_IF_DEBIAN_INSTALL_DEPENDANCIES' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+#BASH_CHECK_IF_DEBIAN_INSTALL_DEPENDANCIES
+#if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_CHECK_IF_BINARY_EXISTS' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+#BASH_CHECK_IF_BINARY_EXISTS
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_INIT' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 BASH_INIT
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_INIT' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_INIT' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_CONF_INIT
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_PORT' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_PORT' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_CONF_PORT
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_VERSION' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_VERSION' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_CONF_VERSION
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_DEVICE' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_DEVICE' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_CONF_DEVICE
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_DOWNLOAD' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_DOWNLOAD' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_DOWNLOAD
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN UNIX_CREATE_USER_AND_GROUP' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_INSTALL' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GLFTPD_INSTALL
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN UNIX_CREATE_USER_AND_GROUP' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 UNIX_CREATE_USER_AND_GROUP
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN PZSNG_DOWNLOAD' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN PZSNG_DOWNLOAD' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 PZSNG_DOWNLOAD
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_DOWNLOAD' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_DOWNLOAD' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 EGGDROP_DOWNLOAD
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_CONF_CHANNELS' && read -p 'Press Enter to continue...'; fi
-EGGDROP_CONF_CHANNELS
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN announce' && read -p 'Press Enter to continue...'; fi
-announce
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN opschan' && read -p 'Press Enter to continue...'; fi
-opschan
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGG__YOUR_IRC_NICKNAME' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_CONF_CHANNELS_ADD' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+EGGDROP_CONF_CHANNELS_ADD
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_CONF_ANNOUNCE_CHANNELS' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+EGGDROP_CONF_ANNOUNCE_CHANNELS
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+EGGDROP_CONF_ANNOUNCE_CHANNELS_ADMIN
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGG__YOUR_IRC_NICKNAME' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 EGG__YOUR_IRC_NICKNAME
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN section_names' && read -p 'Press Enter to continue...'; fi
-section_names
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGG_INSTALL' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Rules' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__Rules
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Space' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__Space
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_CONF_SECTIONS_NAME' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GLFTPD_CONF_SECTIONS_NAME
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGG_INSTALL' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 EGG_INSTALL
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN eggdrop' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN eggdrop' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 eggdrop
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN irc' && read -p 'Press Enter to continue...'; fi
-irc
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN pzshfile' && read -p 'Press Enter to continue...'; fi
-pzshfile
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN pzsbotfile' && read -p 'Press Enter to continue...'; fi
-pzsbotfile
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN pzsng' && read -p 'Press Enter to continue...'; fi
-pzsng
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__eur0_pre_system' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN EGG_CONFIG_IRC' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+EGG_CONFIG_IRC
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN PZS_PATCH_CONFIG_FILE' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+PZS_PATCH_CONFIG_FILE
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN PZS_CONFIG_CHANNELS' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+PZS_CONFIG_CHANNELS
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN PZS_INSTALL' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+PZS_INSTALL
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__eur0_pre_system' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__eur0_pre_system
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__slv__prebw' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__slv__prebw' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__slv__prebw
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__IdleBotKick' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__IdleBotKick' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__IdleBotKick
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__IrcAdmin' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__IrcAdmin' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__IrcAdmin
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Request' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__FTPWho' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__FTPWho
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Request' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__Request
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Trial' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Trial' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__Trial
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Vacation' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Vacation' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__Vacation
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__WhereAmi' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__WhereAmi' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__WhereAmi
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Undupe' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Undupe' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__Undupe
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__PreCheck' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__PreCheck' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__PreCheck
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__AutoNuke' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__PreDirCheck' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__PreDirCheck
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__PreDirCheck_Manager' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__PreDirCheck_Manager
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__AutoNuke' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__AutoNuke
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__PSXC_IMDB' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__PSXC_IMDB' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__PSXC_IMDB
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__AddIp' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__AddIp' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__AddIp
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Oneline_Stats' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Oneline_Stats' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Tur__Oneline_Stats
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Teqno__IRCNick' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Teqno__IRCNick' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Teqno__IRCNick
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_FTP_CREATATION_USER' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_FTP_CREATATION_USER' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_FTP_CREATATION_USER
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN cleanup' && read -p 'Press Enter to continue...'; fi
-cleanup
-if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_END' && read -p 'Press Enter to continue...'; fi
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_UNINSTALL' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_UNINSTALL
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN BASH_END' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 BASH_END
+
 exit 0
 
 

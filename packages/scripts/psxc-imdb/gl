@@ -1,3 +1,0 @@
-site_cmd IMDB-RESCAN    EXEC    /bin/psxc-imdb-rescan.sh
-custom-imdb-rescan      1 =Admin =SiteOP
-
