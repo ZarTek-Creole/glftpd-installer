@@ -1,68 +1,72 @@
-VERSION MOD BY MalaGaM
+VERSION MOD BY MalaGaM - Multi-instance glFTPD
 
-## Change by MalaGaM
-* Select stable or beta version gl 32/64
-* install.sh : optimization and improvement of bash syntax
-* Automatic installation by apt of dependencies for debian
+## WARNING
+WARNING. CODE UNDER CONSTRUCTION. COMPLETE REVISION. HAS NOT FUNCTIONAL AT THE MOMENT. REGULAR 'Night' UPDATE.
+
+THANK YOU FOR WAITING FOR A FUNCTIONAL VERSION. 
+[All suggestions open](https://github.com/MalaGaM/glftpd-installer/pulls).
 
 ## To download
-
 ``` 
 git clone https://github.com/MalaGaM/glftpd-installer
 ```
 
 ## Software
+* Latest stable or beta glFTPD for Linux both 32/64 bit version
+* Eggdrop latest github version
 
-*  latest stable glFTPD for Linux both 32/64 bit version
-*  eggdrop latest github version
 
-## Scripts
+## glFTPD Scripts
+#### Official:
+* [pzs-ng](https://github.com/pzs-ng/pzs-ng) - Latest github version 
+#### GL scripts remaster:
 
-*  pzs-ng latest github version 
-*  rud-news
-*  seen
-*  getops
-*  eur0-pre-system(add/del/list affils part only)
-*  foo-tools(only foo-pre installed) latest github version
-*  idlebotkick
-*  imdbrating
-*  ircnick
-*  mediainfo
-*  precheck
-*  psxc-imdb
-*  section manager
-*  slv-PreBW
-*  tuls
-*  tur-addip
-*  tur-autonuke
-*  tur-free
-*  tur-ftpwho
-*  tur-ircadmin
-*  tur-oneline_stats
-*  tur-precheck
-*  tur-predircheck
-*  tur-predircheck manager
-*  tur-request
-*  tur-rules
-*  tur-space
-*  tur-trial3
-*  tur-undupe
-*  tur-vacation
-*  tvmaze_nuke
-*  whereami
-*  syscheck
+* [eur0-pre-system](https://github.com/MalaGaM/eur0-pre-system) (Add/Del/List affils part only)
+* [foo-tools](https://github.com/MalaGaM/Foo-Tools) (only foo-pre installed) ~~Latest github version~~
+* [Tur-IdleBotKick](https://github.com/MalaGaM/Tur-IdleBotKick)
+* [Teqno-IRCNick](https://github.com/MalaGaM/Teqno-IRCNick)
+* [PSXC-IMDB](https://github.com/MalaGaM/PSXC-IMDB)
+* [SLV-PreBW](https://github.com/MalaGaM/SLV-PreBW)
+* [Tur-AddIp](https://github.com/MalaGaM/Tur-AddIp)
+* [Tur-AutoNuke](https://github.com/MalaGaM/Tur-AutoNuke)
+* [Tur-Free](https://github.com/MalaGaM/Tur-Free)
+* [Tur-FTPWho](https://github.com/MalaGaM/Tur-FTPWho)
+* [Tur-IrcAdmin](https://github.com/MalaGaM/Tur-IrcAdmin)
+* [Tur-Oneline_Stats](https://github.com/MalaGaM/Tur-Oneline_Stats)
+* [Tur-PreCheck](https://github.com/MalaGaM/Tur-PreCheck)
+* [Tur-PreDirCheck](https://github.com/MalaGaM/Tur-PreDirCheck)
+* [Tur-PreDirCheck_Manager](https://github.com/MalaGaM/Tur-PreDirCheck_Manager)
+* [Tur-Request](https://github.com/MalaGaM/Tur-Request)
+* [Tur-Rules](https://github.com/MalaGaM/Tur-Rules)
+* [Tur-Space](https://github.com/MalaGaM/Tur-Space)
+* [Tur-Trial3](https://github.com/MalaGaM/Tur-Trial3)
+* [Tur-Undupe](https://github.com/MalaGaM/Tur-Undupe)
+* [Tur-Vacation](https://github.com/MalaGaM/Tur-Vacation)
+* [Tur-WhereAmi](https://github.com/MalaGaM/Tur-WhereAmi)
+* [Tur-Tuls](https://github.com/MalaGaM/Tur-Tuls)
+* syscheck [soon](https://github.com/MalaGaM/Teqno-SYSCheck)
+* tvmaze_nuke
+* rud-news
+* seen
+* getops
+* section manager
+* imdbrating
+* mediainfo
+
 
 
 ## Requirements
-
-The installer needs to be run as root and it has only been tested in **Debian** and **Slackware**
+The installer needs to be run as root or sudo and it has only been tested in **Debian** ~~and **Slackware**~~
 
 List of required packages for every script to work
 
 **Debian**
+
+~~apt-get install libncurses-dev libc6-i386 dnsutils git tcl8.6-dev tcllib autoconf bc curl diffutils ftp libflac-dev libssl-dev lm-sensors lynx make mariadb-server mkvtoolnix ncftp passwd rsync smartmontools tcl tcl-dev tcl-tls tcpd wget zip~~
 ``` 
-apt-get install autoconf bc curl diffutils ftp git libflac-dev libssl-dev lm-sensors lynx make mariadb-server mkvtoolnix ncftp passwd smartmontools tcl tcl-dev tcl-tls tcpd wget zip
+Now the dependencies are automatically installed on DEBIAN systems
 ``` 
+
 **BASH** needs to be the default shell. To change from default DASH to BASH in Debian do 
 ``` 
 dpkg-reconfigure dash
@@ -129,12 +133,11 @@ ip="*@192.168.1.*" # IP for Administrator account
 ```
 
 ## FAQ
-
 Q. Is there anything I need to know before I install glFTPD using this installer?
 
-A. You have to run this script as root and glFTPD gets installed to /glftpd and the eggdrop to /glftpd/sitebot. Please
-   ensure that the things that are listed under Requirements in this file are installed before running this script.
-   Also, this script has only been tested in Debian and Slackware systems.
+A. You have to run this script as root or sudo and glFTPD gets installed to /glftpd/[siteName] and the eggdrop to /glftpd/sitebot.
+Please  ensure that the things that are listed under Requirements in this file are installed before running this script.
+   Also, this script has only been tested in Debian ~~and Slackware systems~~.
 
 -------------------------------------------------------------------------------
 

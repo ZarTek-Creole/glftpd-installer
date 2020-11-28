@@ -1,3 +1,10 @@
+## 11.0 - 2020-11-28
+
+### Rewrite by MalaGaM :
+- Somes somes and somes rewrite.
+* https://github.com/MalaGaM/glftpd-installer
+
+
 ## 10.x -
 
 ### Updated

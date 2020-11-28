@@ -21,11 +21,12 @@ GIT_URL__EGG="https://github.com/eggheads/eggdrop";
 GIT_URL__FOO_TOOLS="https://github.com/MalaGaM/Foo-Tools"
 
 GIT_URL__GL_SCRIPTS__EUR0_PRE_SYSTEM="https://github.com/MalaGaM/eur0-pre-system"
-GIT_URL__GL_SCRIPTS__SLV_PREBW="https://github.com/MalaGaM/slv-prebw"
+GIT_URL__GL_SCRIPTS__SLV_PREBW="https://github.com/MalaGaM/SLV-PreBW"
 
 GIT_URL__GL_SCRIPTS__PSXC__IMDB="https://github.com/MalaGaM/PSXC-IMDB"
 
-GIT_URL__GL_SCRIPTS__Teqno__IRCNick="https://github.com/MalaGaM/Teqno__IRCNick"
+GIT_URL__GL_SCRIPTS__Teqno__IRCNick="https://github.com/MalaGaM/Teqno-IRCNick"
+GIT_URL__GL_SCRIPTS__Teqno__Section_Manager="https://github.com/MalaGaM/Teqno-Section_Manager"
 
 GIT_URL__GL_SCRIPTS__Tur__IdleBotKick="https://github.com/MalaGaM/Tur-IdleBotKick"
 GIT_URL__GL_SCRIPTS__Tur__IrcAdmin="https://github.com/MalaGaM/Tur-IrcAdmin"
@@ -44,6 +45,7 @@ GIT_URL__GL_SCRIPTS__Tur__PreDirCheck_Manager="https://github.com/MalaGaM/Tur-Pr
 GIT_URL__GL_SCRIPTS__Tur__Rules="https://github.com/MalaGaM/Tur-Rules"
 GIT_URL__GL_SCRIPTS__Tur__Free="https://github.com/MalaGaM/Tur-Free"
 GIT_URL__GL_SCRIPTS__Tur__FTPWho="https://github.com/MalaGaM/Tur-FTPWho"
+GIT_URL__GL_SCRIPTS__Tur__Tuls="https://github.com/MalaGaM/Tur-Tuls"
 
 
 PACKAGES_PATH="${rootdir}/packages"
@@ -58,7 +60,7 @@ BINARY_GCC="$(which gcc)"
 BINARY_NCFTPLS="$(which ncftpls)"
 BINARY_TAR="$(which tar)"
 
-VER=9.10
+VER=11.0
 AUTHOR="SiteTechicien@GMail.Com"
 
 
@@ -731,7 +733,6 @@ GLFTPD_INSTALL () {
 		"0 1 * * *			"${glroot}/bin/olddirclean2" -PD >/dev/null 2>&1"				\
 	>> /var/spool/cron/crontabs/root
 	touch "${glroot}/ftp-data/logs/incomplete-list-nuker.log"
-	${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/tuls/tuls.c" -o "${glroot}/bin/tuls"
 	rm -f "${glroot}/README"
 	rm -f "${glroot}/README.ALPHA"
 	rm -f "${glroot}/UPGRADING"
@@ -744,18 +745,18 @@ GLFTPD_INSTALL () {
 	rm -f "${glroot}/convert_to_2.0.pl"
 	rm -f /etc/glftpd.conf
 	FCT_INSTALL "${glroot}/create_server_key.sh" "${glroot}/etc"
-	FCT_INSTALL "../../site.rules" "${glroot}/ftp-data/misc"
+	FCT_INSTALL "${PACKAGES_PATH_DATA}/site.rules" "${glroot}/ftp-data/misc"
 	FCT_INSTALL incomplete-list.sh "${glroot}/bin"
 	FCT_INSTALL incomplete-list-nuker.sh "${glroot}/bin"
 	FCT_CHMOD 755 "${glroot}/site"
 	ln -s "${glroot}/etc/glftpd.conf" /etc/glftpd.conf
 	FCT_CHMOD 777 "${glroot}/ftp-data/msgs"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/update_perms.sh" "${glroot}/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/mkv_check.sh" "${glroot}/bin"
-	FCT_INSTALL "$(which mkvinfo)" "${glroot}/bin"
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/glftpd-version_check.sh" "${glroot}/bin"
-	echo "0 18 * * *              "${glroot}/bin/glftpd-version_check.sh" >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
-	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/section_manager/section_manager.sh" "${glroot}"
+	### A voir l'utilité ..
+	#FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/update_perms.sh" "${glroot}/bin"
+	#FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/mkv_check.sh" "${glroot}/bin"
+	#FCT_INSTALL "$(which mkvinfo)" "${glroot}/bin"
+	#FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/extra/glftpd-version_check.sh" "${glroot}/bin"
+	#echo "0 18 * * *              "${glroot}/bin/glftpd-version_check.sh" >/dev/null 2>&1" >> /var/spool/cron/crontabs/root
 	FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/imdbrating/imdbrating.sh" "${glroot}"
 	sed -i "s|changeme|"${GL_Device}"|" "${glroot}/section_manager.sh"
 	chown -R root:root "${glroot}/bin"
@@ -1234,7 +1235,37 @@ GL_SCRIPTS__Tur__Vacation () {
 			FCT_CHMOD 666 "${glroot}/etc/vacation.index"
 			touch "${glroot}/etc/quota_vacation.db";
 			FCT_CHMOD 666 "${glroot}/etc/quota_vacation.db"
-			cat"${PACKAGES_PATH_GL_SCRIPTS}/Tur-Vacation/gl" >> "${glroot}/etc/glftpd.conf"
+			cat "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Vacation/gl" >> "${glroot}/etc/glftpd.conf"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+## Tur-Vacation
+GL_SCRIPTS__Tur__Tuls () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Tur__Tuls "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Tur__Tuls "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Tur-Vacation:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Tur__Tuls}"
+		echo
+		echo -n "Install Tur-Tuls ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Tuls= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Tuls=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Tur__Tuls= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Tur__Tuls=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Tur__Tuls}" "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Tuls"
+			echo "Installing Tur-Tuls, please wait..."
+			FCT_EXEC_SHOW_ERROR ${BINARY_GCC} "${PACKAGES_PATH_GL_SCRIPTS}/Tur-Tuls/tuls.c" -o "${glroot}/bin/tuls"
 			echo -e "[\e[32mDone\e[0m]"
 		;;
 	esac
@@ -1812,6 +1843,37 @@ GL_SCRIPTS__Teqno__IRCNick () {
 }
 
 
+## ircnick
+GL_SCRIPTS__Teqno__Section_Manager () {
+	if [[ -f "$cache" && "$(grep -c -w GL_SCRIPTS__Teqno__Section_Manager "$cache")" = 1 ]]; then
+		ask="$(grep -w GL_SCRIPTS__Teqno__Section_Manager "$cache" | cut -d "=" -f2 | tr -d "\"")"
+	else
+		echo
+		echo -e "\e[4mDescription for Teqno-IRCNick:\e[0m"
+		FCT_GIT_GET_DESCRIPTION "${GIT_URL__GL_SCRIPTS__Teqno__Section_Manager}"
+		echo
+		echo -n "Install Teqno-IRCNick ? [Y]es [N]o, default Y : " ; read -r ask
+	fi
+	
+	case "$ask" in
+		[Nn])
+			if [ "$(grep -c -w GL_SCRIPTS__Teqno__Section_Manager= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Teqno__Section_Manager=\"n\"" >> "$cache"
+			fi
+		;;
+		[Yy]|*)
+			if [ "$(grep -c -w GL_SCRIPTS__Teqno__Section_Manager= "$cache")" = 0 ]; then
+				echo "GL_SCRIPTS__Teqno__Section_Manager=\"y\"" >> "$cache"
+			fi
+			FCT_GIT_GET "${GIT_URL__GL_SCRIPTS__Teqno__Section_Manager}" "${PACKAGES_PATH_GL_SCRIPTS}/Teqno-Section_Manager"
+			echo "Installing Teqno-Section_Manager, please wait..."
+			FCT_INSTALL "${PACKAGES_PATH_GL_SCRIPTS}/Teqno-Section_Manager/section_manager.sh" "${glroot}"
+			echo -e "[\e[32mDone\e[0m]"
+		;;
+	esac
+}
+
+
 GLFTPD_INSTALLER_DISCLAIMER () {
 	Banner_Show "Welcome to the glFTPD installer v"$VER"" silent
 	echo
@@ -2116,6 +2178,10 @@ if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Oneline_Stats' &
 GL_SCRIPTS__Tur__Oneline_Stats
 if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Teqno__IRCNick' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GL_SCRIPTS__Teqno__IRCNick
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Teqno__Section_Manager' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Teqno__Section_Manager
+if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_SCRIPTS__Tur__Tuls' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
+GL_SCRIPTS__Tur__Tuls
 if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GLFTPD_FTP_CREATATION_USER' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
 GLFTPD_FTP_CREATATION_USER
 if [ "$DEBUGINSTALL" = true ] ; then echo 'RUN GL_UNINSTALL' && read -p "[${glroot}] [$(pwd)] Press Enter to continue..."; fi
