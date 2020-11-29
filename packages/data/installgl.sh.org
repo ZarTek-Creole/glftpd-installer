@@ -717,8 +717,8 @@ echo ""
 echo -e "\n\033[1m4. SERVICE SETUP & MULTI-INSTALL:\033[0m\n\033[1m---------------------------------\033[0m\n"
 
 servicedef="`basename ${glroot}`"
-servicename=$servicedef
-exit $servicename
+servicename=$glservicename
+echo "><<<<>>> $servicename <<<>><<"
 while [ -z "$servicename" ]; do
     echo "Enter a service name for glftpd. This name will be used as the"
     echo "service name mapped to the port in /etc/services, the name"
@@ -779,7 +779,8 @@ if [ ! "${servicename}" = "glftpd" ]; then
     esac
   done
 fi
-
+echo $ipckey > $jaildir$glroot/ipckey.txt
+export gl_ipckey
 
 echo -e "\n\n\033[1m5. COMPILING SOURCES & COPYING LIBS:\033[0m\n\033[1m------------------------------------\033[0m\n"
 
@@ -1460,7 +1461,7 @@ cat <<EOF > "/etc/systemd/system/$servicename@.service"
 Description=$servicename per connection server
 [Service]
 # ExecStart=-$jaildir$glroot/bin/glftpd -l -i -o $confpath $glstrings $euroweek
-ExecStart=-$jaildir$glroot/bin/glftpd-full-static -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf
+ExecStart=-$jaildir$glroot/bin/glftpd-full-static -l -o -i -e -I -n 0 -b -x -r $glroot/etc/glftpd.conf $glstrings
 StandardInput=socket
 SyslogFacility=ftp
 EOF
