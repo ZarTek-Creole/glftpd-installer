@@ -2,7 +2,7 @@
 
 ### Rewrite by ZarTek :
 - Somes somes and somes rewrite.
-* https://github.com/ZarTek-Creole/glftpd-installer
+* github.com/ZarTek-Creole/glftpd-installer
 
 
 ## 10.x -
