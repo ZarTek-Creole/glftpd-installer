@@ -1,8 +1,8 @@
 ## 11.0 - 2020-11-28
 
-### Rewrite by MalaGaM :
+### Rewrite by ZarTek :
 - Somes somes and somes rewrite.
-* https://github.com/MalaGaM/glftpd-installer
+* https://github.com/ZarTek-Creole/glftpd-installer
 
 
 ## 10.x -

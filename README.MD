@@ -1,14 +1,14 @@
-VERSION MOD BY MalaGaM - Multi-instance glFTPD
+VERSION MOD BY ZarTek - Multi-instance glFTPD
 
 ## WARNING
 WARNING. CODE UNDER CONSTRUCTION. COMPLETE REVISION. HAS NOT FUNCTIONAL AT THE MOMENT. REGULAR 'Night' UPDATE.
 
 THANK YOU FOR WAITING FOR A FUNCTIONAL VERSION. 
-[All suggestions open](https://github.com/MalaGaM/glftpd-installer/pulls).
+[All suggestions open](https://github.com/ZarTek-Creole/glftpd-installer/pulls).
 
 ## To download
 ``` 
-git clone https://github.com/MalaGaM/glftpd-installer
+git clone https://github.com/ZarTek-Creole/glftpd-installer
 ```
 
 ## Software
@@ -21,30 +21,30 @@ git clone https://github.com/MalaGaM/glftpd-installer
 * [pzs-ng](https://github.com/pzs-ng/pzs-ng) - Latest github version 
 #### GL scripts remaster:
 
-* [eur0-pre-system](https://github.com/MalaGaM/eur0-pre-system) (Add/Del/List affils part only)
-* [foo-tools](https://github.com/MalaGaM/Foo-Tools) (only foo-pre installed) ~~Latest github version~~
-* [Tur-IdleBotKick](https://github.com/MalaGaM/Tur-IdleBotKick)
-* [Teqno-IRCNick](https://github.com/MalaGaM/Teqno-IRCNick)
-* [PSXC-IMDB](https://github.com/MalaGaM/PSXC-IMDB)
-* [SLV-PreBW](https://github.com/MalaGaM/SLV-PreBW)
-* [Tur-AddIp](https://github.com/MalaGaM/Tur-AddIp)
-* [Tur-AutoNuke](https://github.com/MalaGaM/Tur-AutoNuke)
-* [Tur-Free](https://github.com/MalaGaM/Tur-Free)
-* [Tur-FTPWho](https://github.com/MalaGaM/Tur-FTPWho)
-* [Tur-IrcAdmin](https://github.com/MalaGaM/Tur-IrcAdmin)
-* [Tur-Oneline_Stats](https://github.com/MalaGaM/Tur-Oneline_Stats)
-* [Tur-PreCheck](https://github.com/MalaGaM/Tur-PreCheck)
-* [Tur-PreDirCheck](https://github.com/MalaGaM/Tur-PreDirCheck)
-* [Tur-PreDirCheck_Manager](https://github.com/MalaGaM/Tur-PreDirCheck_Manager)
-* [Tur-Request](https://github.com/MalaGaM/Tur-Request)
-* [Tur-Rules](https://github.com/MalaGaM/Tur-Rules)
-* [Tur-Space](https://github.com/MalaGaM/Tur-Space)
-* [Tur-Trial3](https://github.com/MalaGaM/Tur-Trial3)
-* [Tur-Undupe](https://github.com/MalaGaM/Tur-Undupe)
-* [Tur-Vacation](https://github.com/MalaGaM/Tur-Vacation)
-* [Tur-WhereAmi](https://github.com/MalaGaM/Tur-WhereAmi)
-* [Tur-Tuls](https://github.com/MalaGaM/Tur-Tuls)
-* syscheck [soon](https://github.com/MalaGaM/Teqno-SYSCheck)
+* [eur0-pre-system](https://github.com/ZarTek-Creole/eur0-pre-system) (Add/Del/List affils part only)
+* [foo-tools](https://github.com/ZarTek-Creole/Foo-Tools) (only foo-pre installed) ~~Latest github version~~
+* [Tur-IdleBotKick](https://github.com/ZarTek-Creole/Tur-IdleBotKick)
+* [Teqno-IRCNick](https://github.com/ZarTek-Creole/Teqno-IRCNick)
+* [PSXC-IMDB](https://github.com/ZarTek-Creole/PSXC-IMDB)
+* [SLV-PreBW](https://github.com/ZarTek-Creole/SLV-PreBW)
+* [Tur-AddIp](https://github.com/ZarTek-Creole/Tur-AddIp)
+* [Tur-AutoNuke](https://github.com/ZarTek-Creole/Tur-AutoNuke)
+* [Tur-Free](https://github.com/ZarTek-Creole/Tur-Free)
+* [Tur-FTPWho](https://github.com/ZarTek-Creole/Tur-FTPWho)
+* [Tur-IrcAdmin](https://github.com/ZarTek-Creole/Tur-IrcAdmin)
+* [Tur-Oneline_Stats](https://github.com/ZarTek-Creole/Tur-Oneline_Stats)
+* [Tur-PreCheck](https://github.com/ZarTek-Creole/Tur-PreCheck)
+* [Tur-PreDirCheck](https://github.com/ZarTek-Creole/Tur-PreDirCheck)
+* [Tur-PreDirCheck_Manager](https://github.com/ZarTek-Creole/Tur-PreDirCheck_Manager)
+* [Tur-Request](https://github.com/ZarTek-Creole/Tur-Request)
+* [Tur-Rules](https://github.com/ZarTek-Creole/Tur-Rules)
+* [Tur-Space](https://github.com/ZarTek-Creole/Tur-Space)
+* [Tur-Trial3](https://github.com/ZarTek-Creole/Tur-Trial3)
+* [Tur-Undupe](https://github.com/ZarTek-Creole/Tur-Undupe)
+* [Tur-Vacation](https://github.com/ZarTek-Creole/Tur-Vacation)
+* [Tur-WhereAmi](https://github.com/ZarTek-Creole/Tur-WhereAmi)
+* [Tur-Tuls](https://github.com/ZarTek-Creole/Tur-Tuls)
+* syscheck [soon](https://github.com/ZarTek-Creole/Teqno-SYSCheck)
 * tvmaze_nuke
 * rud-news
 * seen
